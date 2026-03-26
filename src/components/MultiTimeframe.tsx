@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Activity, TrendingUp, TrendingDown, Minus, Clock, Loader2 } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, Minus, Clock, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { analyzeMTF } from '../services/aiService';
 import { useSettings } from '../contexts/SettingsContext';
@@ -17,6 +17,7 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
   const { settings } = useSettings();
   const [analysis, setAnalysis] = useState<MTFResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [data, setData] = useState<MTFData | null>(null);
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
@@ -53,9 +54,11 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
 
         if (!cancelled && mountedRef.current) {
           setData({ data1h, data1d, data1wk });
+          setFetchError(null);
         }
       } catch (error) {
         console.error("Error fetching MTF data:", error);
+        if (!cancelled && mountedRef.current) setFetchError(error instanceof Error ? error.message : '資料載入失敗');
       } finally {
         if (!cancelled && mountedRef.current) setIsLoading(false);
       }
@@ -75,6 +78,7 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
         if (!cancelled && mountedRef.current) setAnalysis(result);
       } catch (error) {
         console.error("Error analyzing MTF data:", error);
+        if (!cancelled && mountedRef.current) setFetchError(error instanceof Error ? error.message : 'AI 分析失敗');
       } finally {
         if (!cancelled && mountedRef.current) setIsLoading(false);
       }
@@ -152,6 +156,12 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
               </p>
             </div>
           </>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center h-64 space-y-3 relative z-10">
+            <AlertCircle className="w-10 h-10 text-rose-400" />
+            <p className="text-rose-400 font-semibold">載入失敗</p>
+            <p className="text-white/40 text-sm text-center max-w-xs">{fetchError}</p>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-64 space-y-4 relative z-10">
             <p className="text-white/60">無法載入分析結果</p>

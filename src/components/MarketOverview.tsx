@@ -9,10 +9,10 @@
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion } from 'motion/react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
-import { 
-  TrendingUp, TrendingDown, Activity, DollarSign, Globe2, 
+import {
+  TrendingUp, TrendingDown, Activity, DollarSign, Globe2,
   Loader2, Newspaper, Flame, ExternalLink,
-  Plus, X, Search, Zap
+  Plus, X, Search, Zap, AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
@@ -149,8 +149,11 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
   const [selected, setSelected] = useState<Stock|null>(null);
   
   // UI 控制狀態
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+  type LoadState = 'loading' | 'refreshing' | 'idle';
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const loading = loadState === 'loading';
+  const busy    = loadState === 'refreshing';
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [addInput, setAddInput] = useState('');
   const [addErr, setAddErr] = useState('');
@@ -226,7 +229,8 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
   const loadAllData = useCallback(async (quiet = false) => {
     if (loadingRef.current) return;
     loadingRef.current = true;
-    if (!quiet) setLoading(true); else setBusy(true);
+    setLoadState(quiet ? 'refreshing' : 'loading');
+    setFetchErr(null);
     try {
       const wlData = await api.getWatchlist().catch(() => []);
       const enrichedStocks = (Array.isArray(wlData) ? wlData : []).map((w: WatchlistItem) => enrich(w));
@@ -300,10 +304,11 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
       setLastUpdate(new Date().toLocaleTimeString());
 
     } catch (err: unknown) {
-      console.error('載入市場數據失敗:', err instanceof Error ? err.message : err);
-      // 可在此處設定錯誤狀態以顯示於 UI
+      const msg = err instanceof Error ? err.message : '載入市場數據失敗';
+      console.error('[MarketOverview] loadAllData:', msg);
+      setFetchErr(msg);
     } finally {
-      setLoading(false); setBusy(false);
+      setLoadState('idle');
       loadingRef.current = false;
     }
   }, []);
@@ -350,10 +355,21 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
 
   const up = (s: { changePct: number } | Stock) => s.changePct >= 0;
 
+  if (fetchErr && marketData.length === 0 && stocks.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="text-rose-400" size={32}/>
+        <div className="text-sm font-bold text-rose-400">市場資料載入失敗</div>
+        <div className="text-xs text-slate-500">{fetchErr}</div>
+        <button onClick={() => loadAllData()} className="px-4 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-colors">重試</button>
+      </div>
+    );
+  }
+
   if (loading && marketData.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
-        <Loader2 className="animate-spin text-emerald-400" size={32}/> 
+        <Loader2 className="animate-spin text-emerald-400" size={32}/>
         <div className="text-sm font-bold text-white tracking-widest">INITIALIZING MARKET DATA ENGINE...</div>
         <div className="text-xs text-slate-500">正在與 Yahoo Finance 建立安全連線並獲取真實報價</div>
       </div>
