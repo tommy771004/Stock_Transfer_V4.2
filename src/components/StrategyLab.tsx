@@ -49,13 +49,14 @@ const INITIAL_SUGGESTIONS: AISuggestion[] = [
   { param: 'RSI PERIOD',       oldVal: 14, newVal: 11, roi: 5.3,  applied: false },
 ];
 
+type BtStatus = 'idle' | 'running' | 'done' | 'error';
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function StrategyLab() {
   const [tab,         setTab]         = useState<'visual'|'script'>('script');
   const [btTab,       setBtTab]       = useState<'chart'|'log'>('chart');
   const [script,      setScript]      = useState(DEFAULT_SCRIPT);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>(INITIAL_SUGGESTIONS);
-  type BtStatus = 'idle' | 'running' | 'done' | 'error';
   const [btStatus,    setBtStatus]    = useState<BtStatus>('idle');
   const [btResult,    setBtResult]    = useState<BacktestResult | null>(null);
   const [btError,     setBtError]     = useState('');

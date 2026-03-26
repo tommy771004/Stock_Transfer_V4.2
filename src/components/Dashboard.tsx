@@ -101,7 +101,7 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
 
     const handler = setTimeout(runAnalysis, 500);
     return () => { mounted = false; clearTimeout(handler); };
-  }, [symbol, model, quote?.regularMarketPrice, historicalData.length, marketData.length, quote, historicalData, marketData, settings.systemInstruction]);
+  }, [symbol, model, quote, historicalData, marketData, settings.systemInstruction]);
 
   const indicators = useMemo(() => {
     if (!Array.isArray(historicalData) || historicalData.length === 0) return null;
@@ -143,7 +143,7 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
 
 const isUp = (quote?.regularMarketChange ?? 0) >= 0;
 
-const exportToCSV = (data: any[], filename: string) => {
+const exportToCSV = (data: HistoricalData[], filename: string) => {
   const csvContent = "data:text/csv;charset=utf-8," +
     ["Date,Open,High,Low,Close,Volume"].concat(
       data.map(r => `${r.date},${r.open},${r.high},${r.low},${r.close},${r.volume}`)
@@ -243,14 +243,14 @@ const exportToCSV = (data: any[], filename: string) => {
                   {recentTrades.length > 0 ? (
                     recentTrades.map((t) => (
                       <TradeRow
-                        key={t.id ?? `${t.date}-${t.symbol}-${t.price}`}
+                        key={t.id ?? `${t.date}-${t.ticker}-${t.entry}`}
                         date={t.date?.slice(0, 10) || '-'}
-                        ticker={t.symbol}
-                        action={t.type === 'BUY' ? 'Buy Long' : 'Sell Short'}
-                        entry={t.entryPrice}
-                        exit={t.exitPrice}
+                        ticker={t.ticker ?? t.symbol ?? '-'}
+                        action={t.action?.includes('Buy') || t.action === 'BUY' ? 'Buy Long' : 'Sell Short'}
+                        entry={t.entry ?? t.entryPrice}
+                        exit={t.exit ?? t.exitPrice}
                         pnl={t.pnl}
-                        status={t.pnl >= 0 ? 'Win' : 'Loss'}
+                        status={(t.pnl ?? 0) >= 0 ? 'Win' : 'Loss'}
                       />
                     ))
                   ) : (
@@ -372,7 +372,7 @@ function TimeframeBadge({ label, status }: { label: string, status: 'bullish' | 
   );
 }
 
-function TradeRow({ date, ticker, action, entry, exit, pnl, status }: { key?: any, date: string, ticker: string, action: string, entry: number, exit: number, pnl: number, status: 'Win' | 'Loss' }) {
+function TradeRow({ date, ticker, action, entry, exit, pnl, status }: { date: string; ticker: string; action: string; entry?: number; exit?: number; pnl: number; status: 'Win' | 'Loss' }) {
   return (
     <tr className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors">
       <td className="px-4 py-4 text-zinc-400 font-mono text-sm">{date}</td>
