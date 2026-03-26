@@ -6,6 +6,7 @@ import {
 } from 'lightweight-charts';
 import { useSettings } from '../contexts/SettingsContext';
 import { HistoricalData } from '../types';
+import { calcEMA, calcRSISeries as calcRSI, calcMACDSeries as calcMACD, calcBBSeries as calcBB } from '../utils/math';
 
 // 內建 safeCn，防止 import { cn } 失敗導致黑屏
 function safeCn(...classes: (string | undefined | null | false)[]) {
@@ -15,49 +16,6 @@ function safeCn(...classes: (string | undefined | null | false)[]) {
 interface Props { data: HistoricalData[]; }
 type Indicator = 'EMA1' | 'EMA2' | 'BB' | 'Volume';
 type SubPanel  = 'none' | 'RSI' | 'MACD';
-
-// ── Math helpers ──────────────────────────────────────────────────────────────
-function calcEMA(closes: number[], period: number): number[] {
-  if (!closes?.length) return [];
-  const k = 2 / (period + 1); let e = closes[0];
-  return closes.map(v => { e = v * k + e * (1 - k); return e; });
-}
-function calcRSI(closes: number[], period = 14): number[] {
-  if (!closes || closes.length <= period) return Array(closes.length).fill(50);
-  const rsi: number[] = Array(period).fill(50);
-  let ag = 0, al = 0;
-  for (let i = 1; i <= period; i++) {
-    const c = closes[i] - closes[i - 1];
-    if (c > 0) ag += c;
-    else al -= c;
-  }
-  ag /= period; al /= period;
-  rsi[period] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
-  for (let i = period + 1; i < closes.length; i++) {
-    const c = closes[i] - closes[i-1];
-    if (c > 0) { ag = (ag * (period-1) + c) / period; al = al * (period-1) / period; }
-    else        { al = (al * (period-1) - c) / period; ag = ag * (period-1) / period; }
-    rsi.push(al === 0 ? 100 : 100 - 100 / (1 + ag / al));
-  }
-  return rsi;
-}
-function calcMACD(closes: number[]) {
-  if (!closes?.length) return [];
-  const e12 = calcEMA(closes, 12), e26 = calcEMA(closes, 26);
-  const macd = e12.map((v, i) => v - e26[i]);
-  const signal = calcEMA(macd, 9);
-  return macd.map((v, i) => ({ macd: v, signal: signal[i], hist: v - signal[i] }));
-}
-function calcBB(closes: number[], period = 20, mult = 2) {
-  if (!closes?.length) return [];
-  return closes.map((_, i) => {
-    if (i < period - 1) return null;
-    const slice = closes.slice(i - period + 1, i + 1);
-    const mean = slice.reduce((a, b) => a + b, 0) / period;
-    const std  = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period);
-    return { upper: mean + mult * std, mid: mean, lower: mean - mult * std };
-  });
-}
 
 const SUB_H = 120;
 

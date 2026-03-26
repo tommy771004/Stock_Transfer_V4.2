@@ -18,6 +18,7 @@ import { cn } from './lib/utils';
 import { MODELS } from './constants';
 import { useDeviceType } from './hooks/useDeviceType';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
 import MarketOverview from './components/MarketOverview';
 import TradingCore    from './components/TradingCore';
 import BacktestPage  from './components/BacktestPage';
@@ -356,16 +357,16 @@ function MainApp() {
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                   className="h-full"
                 >
-                  {page==='market'    && <MarketOverview onSelectSymbol={goTrading}/>}
-                  {page==='trading'   && <TradingCore model={model} symbol={symbol} onSymbolChange={setSymbol} onGoBacktest={goBacktest}/>}
-                  {page==='backtest'  && <BacktestPage initialSymbol={symbol}/>}
-                  {page==='strategy'  && <StrategyLab />}
-                  {page==='sentiment' && <SentimentPage model={model} symbol={symbol}/>}
-                  {page==='screener'  && <StockScreener onSelectSymbol={goTrading}/>}
-                  {page==='portfolio' && <Portfolio onGoBacktest={goBacktest} onGoJournal={goJournal}/>}
-                  {page==='journal'   && <TradeJournal />}
-                  {page==='logs'      && <SystemLogs />}
-                  {page==='settings'  && <Settings />}
+                  {page==='market'    && <ErrorBoundary name="市場總覽"><MarketOverview onSelectSymbol={goTrading}/></ErrorBoundary>}
+                  {page==='trading'   && <ErrorBoundary name="Trading Core"><TradingCore model={model} symbol={symbol} onSymbolChange={setSymbol} onGoBacktest={goBacktest}/></ErrorBoundary>}
+                  {page==='backtest'  && <ErrorBoundary name="回測引擎"><BacktestPage initialSymbol={symbol}/></ErrorBoundary>}
+                  {page==='strategy'  && <ErrorBoundary name="策略實驗室"><StrategyLab /></ErrorBoundary>}
+                  {page==='sentiment' && <ErrorBoundary name="市場情緒"><SentimentPage model={model} symbol={symbol}/></ErrorBoundary>}
+                  {page==='screener'  && <ErrorBoundary name="智慧選股"><StockScreener onSelectSymbol={goTrading}/></ErrorBoundary>}
+                  {page==='portfolio' && <ErrorBoundary name="投資組合"><Portfolio onGoBacktest={goBacktest} onGoJournal={goJournal}/></ErrorBoundary>}
+                  {page==='journal'   && <ErrorBoundary name="交易日誌"><TradeJournal /></ErrorBoundary>}
+                  {page==='logs'      && <ErrorBoundary name="系統配置"><SystemLogs /></ErrorBoundary>}
+                  {page==='settings'  && <ErrorBoundary name="設定"><Settings /></ErrorBoundary>}
                 </motion.div>
               </AnimatePresence>
             </div>

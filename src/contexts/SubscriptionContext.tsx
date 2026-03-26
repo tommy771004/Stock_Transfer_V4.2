@@ -14,9 +14,13 @@ interface SubscriptionContextType {
   closeUpgradeModal: () => void;
 }
 
-const SubscriptionContext = createContext<SubscriptionContextType>({} as SubscriptionContextType);
+const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
 
-export const useSubscription = () => useContext(SubscriptionContext);
+export const useSubscription = (): SubscriptionContextType => {
+  const ctx = useContext(SubscriptionContext);
+  if (!ctx) throw new Error('useSubscription must be used within SubscriptionProvider');
+  return ctx;
+};
 
 export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tier, setTier] = useState<SubscriptionTier>(SubscriptionTier.FREE);

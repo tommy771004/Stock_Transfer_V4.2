@@ -72,6 +72,35 @@ export interface WatchlistItem {
   shortName?: string;
 }
 
+/**
+ * Raw backend DTO — mirrors whatever the server / Electron IPC sends.
+ * Use `mapTradeDTO` to convert to the normalised `Trade` domain model.
+ */
+export interface TradeDTO {
+  id: number;
+  date: string;
+  ticker?: string;
+  symbol?: string;
+  action?: string;
+  side?: string;
+  entry?: number;
+  exit?: number;
+  entryPrice?: number;
+  exitPrice?: number;
+  price?: number;
+  qty: number;
+  pnl: number;
+  status: string;
+  ai?: string;
+  notes?: string;
+  message?: string;
+  mode?: string;
+  broker?: string;
+  orderType?: string;
+  priceType?: string;
+}
+
+/** Normalised frontend domain model for a completed trade. */
 export interface Trade {
   id: number;
   date: string;
@@ -85,7 +114,7 @@ export interface Trade {
   ai?: string;
   notes?: string;
   message?: string;
-  // 相容性欄位
+  // Backward-compat aliases kept for components that still reference them
   symbol?: string;
   side?: string;
   price?: number;
@@ -95,6 +124,33 @@ export interface Trade {
   priceType?: string;
   entryPrice?: number;
   exitPrice?: number;
+}
+
+/** Maps a raw backend TradeDTO to the normalised frontend Trade model. */
+export function mapTradeDTO(dto: TradeDTO): Trade {
+  return {
+    id: dto.id,
+    date: dto.date,
+    ticker: dto.ticker ?? dto.symbol ?? '',
+    action: dto.action ?? dto.side ?? '',
+    entry: dto.entry ?? dto.entryPrice ?? dto.price ?? 0,
+    exit: dto.exit ?? dto.exitPrice ?? 0,
+    qty: dto.qty,
+    pnl: dto.pnl,
+    status: dto.status,
+    ai: dto.ai,
+    notes: dto.notes,
+    message: dto.message,
+    symbol: dto.symbol ?? dto.ticker,
+    side: dto.side ?? dto.action,
+    price: dto.price,
+    mode: dto.mode,
+    broker: dto.broker,
+    orderType: dto.orderType,
+    priceType: dto.priceType,
+    entryPrice: dto.entryPrice ?? dto.entry,
+    exitPrice: dto.exitPrice ?? dto.exit,
+  };
 }
 
 export interface Position {
