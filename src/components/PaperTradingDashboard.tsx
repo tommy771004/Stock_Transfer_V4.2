@@ -34,7 +34,7 @@ export default function PaperTradingDashboard() {
 
       // Fetch live quotes for all held symbols
       const symbols = positions.map((p: Position) => p.symbol);
-      const quotes = await api.getBatchQuotes(symbols);
+      const quotes = await api.getBatchQuotes(symbols).catch(() => []);
       const quoteMap = new Map<string, Quote>();
       if (Array.isArray(quotes)) {
         quotes.forEach((q: Quote) => { if (q?.symbol) quoteMap.set(q.symbol, q); });

@@ -201,7 +201,7 @@ export default function SystemLogs() {
           {id:'alerts', label:'🔔 價格警報'},
           {id:'system', label:'💻 系統資源'},
         ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id as any)}
+          <button key={t.id} onClick={() => { const validTabs = ['broker','logs','alerts','system'] as const; if (validTabs.includes(t.id as typeof validTabs[number])) setTab(t.id as typeof validTabs[number]); }}
             className={cn('px-4 py-2 rounded-xl text-base font-semibold transition-all whitespace-nowrap',
               tab===t.id?'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30':'bg-white/5 text-slate-400 border border-white/8 hover:bg-white/10')}>
             {t.label}

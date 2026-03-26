@@ -94,7 +94,7 @@ export default function Settings() {
         const keys = Object.keys(DEFAULT_SETTINGS);
         const pairs = await Promise.all(keys.map(async k => {
           const v = await getSetting(k);
-          return [k, v] as [string, any];
+          return [k, v] as [string, unknown];
         }));
         const loaded: Partial<S> = {};
         pairs.forEach(([k, v]) => { if (v !== null && v !== undefined) loaded[k] = v; });
@@ -113,7 +113,7 @@ export default function Settings() {
     getDbStats().then(res => setDbStats(res as DbStats | null)).catch(e => console.warn('[Settings] getDbStats:', e));
   }, []);
 
-  const set = (key: string, val: any) => {
+  const set = (key: string, val: unknown) => {
     setSettings(p => ({ ...p, [key]: val }));
     updateSetting(key, val);
   };
