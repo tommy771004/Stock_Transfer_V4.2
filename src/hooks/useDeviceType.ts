@@ -43,7 +43,7 @@ function getIsTouch(): boolean {
 
 function getIsElectron(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!(window as any).electronAPI;
+  return !!((window as Window & { electronAPI?: unknown }).electronAPI);
 }
 
 export function useDeviceType(): DeviceInfo {

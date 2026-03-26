@@ -40,7 +40,7 @@ export const RightPanel: React.FC<RightPanelProps> = React.memo(({
   const totalValue = portfolio.reduce((acc, order) => {
     const price = Number(order?.price) || 0;
     const qty = Number(order?.qty) || 0;
-    const value = price * qty;
+    const value = isFinite(price) && isFinite(qty) ? price * qty : 0;
     return acc + (order?.side === 'sell' ? -value : value);
   }, 0);
   return (
@@ -195,7 +195,7 @@ export const RightPanel: React.FC<RightPanelProps> = React.memo(({
             className={safeCn("w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-[var(--text-color)] font-mono focus:outline-none focus:border-emerald-500/40", compact ? "text-xs" : "text-sm")} />
           <div className="flex justify-between">
             <span className="text-zinc-500">預估金額</span>
-            <span className="text-[var(--text-color)] font-mono">{price ? `$${((Number(price) || 0) * orderQty).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}</span>
+            <span className="text-[var(--text-color)] font-mono">{price && isFinite(Number(price)) && isFinite(orderQty) ? `$${(Number(price) * orderQty).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}</span>
           </div>
           <button 
             onClick={() => price && executeOrder(symbol, oSide, orderQty, price)} 

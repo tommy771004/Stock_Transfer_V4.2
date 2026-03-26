@@ -19,6 +19,7 @@ import * as api from '../services/api';
 import { analyzeSentiment, analyzeMTF, analyzeStock } from '../services/aiService';
 import { motion } from 'motion/react';
 import { SentimentData, MTFResult, AIAnalysisResult, HistoricalData } from '../types';
+import { useSettings } from '../contexts/SettingsContext';
 
 const MARKET_SYMBOLS = ['^GSPC','^IXIC','^VIX','BTC-USD','ETH-USD','^TNX','GC=F'];
 const DEFAULT_MTF_SYM = '2330.TW';
@@ -75,7 +76,7 @@ const indicLabel = (s: string) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SentimentPage({ model, symbol: initSym }: Props) {
-  const settings = { systemInstruction: '' };
+  const { settings } = useSettings();
   const [sentiment,    setSentiment]    = useState<SentimentData | null>(null);
   const [mtf,          setMtf]          = useState<MTFResult | null>(null);
   const [singleAI,     setSingleAI]     = useState<AIAnalysisResult | null>(null);
@@ -111,9 +112,9 @@ export default function SentimentPage({ model, symbol: initSym }: Props) {
       };
 
       const [d1h, d1d, d1wk] = await Promise.all([
-        api.getHistory(sym, {period1: getPastDateStr(30), interval:'1h'}).catch(() => []),
-        api.getHistory(sym, {period1: getPastDateStr(365), interval:'1d'}).catch(() => []),
-        api.getHistory(sym, {period1: getPastDateStr(365 * 3), interval:'1wk'}).catch(() => []),
+        api.getHistory(sym, {period1: getPastDateStr(30), interval:'1h'}).catch(e => { console.warn('[SentimentPage] getHistory 1h:', sym, e); return []; }),
+        api.getHistory(sym, {period1: getPastDateStr(365), interval:'1d'}).catch(e => { console.warn('[SentimentPage] getHistory 1d:', sym, e); return []; }),
+        api.getHistory(sym, {period1: getPastDateStr(365 * 3), interval:'1wk'}).catch(e => { console.warn('[SentimentPage] getHistory 1wk:', sym, e); return []; }),
       ]);
       const [mtfResult, singleResult] = await Promise.all([
         analyzeMTF(sym, (d1h??[]) as HistoricalData[], (d1d??[]) as HistoricalData[], (d1wk??[]) as HistoricalData[], model, settings.systemInstruction),
