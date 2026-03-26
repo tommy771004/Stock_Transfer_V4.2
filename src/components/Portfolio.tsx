@@ -26,7 +26,7 @@ import CardStack from './CardStack';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { buildPortfolioPdf } from '../utils/exportPdf';
-import { Position, Trade } from '../types';
+import { Position, Trade, HistoricalData } from '../types';
 import Decimal from 'decimal.js';
 
 const COLORS = ['#34d399','#60a5fa','#f472b6','#fbbf24','#a78bfa','#94a3b8','#fb923c','#38bdf8'];
@@ -39,7 +39,7 @@ interface Props {
 type PortfolioStatus = 'loading' | 'refreshing' | 'idle' | 'error';
 
 // Build equity curve from trades
-function buildEquityCurve(trades:Trade[], start:number, benchCloses:Pick<import('../types').HistoricalData,'date'|'close'>[]=[]) {
+function buildEquityCurve(trades:Trade[], start:number, benchCloses:Pick<HistoricalData,'date'|'close'>[]=[]) {
   if (!trades.length) return [];
   const sorted=[...trades]
     .filter(t => t && typeof t === 'object')
@@ -105,7 +105,7 @@ const AllocationPieChart = memo(({ alloc, totalMV, compact }: { alloc: { name: s
         {alloc.map((d,i)=>(
           <div key={i} className="flex items-center justify-between">
             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor:d.color}}/><span className={cn("text-[var(--text-color)] opacity-70 truncate w-16", compact ? "label-meta" : "text-xs")}>{d.name}</span></div>
-            <span className={cn("text-[var(--text-color)] opacity-50 font-mono", compact ? "label-meta" : "text-xs")}>{totalMV>0?((d.value/totalMV)*100).toFixed(1):0}%</span>
+            <span className={cn("text-[var(--text-color)] opacity-50 font-mono", compact ? "label-meta" : "text-xs")}>{totalMV>0?((d.value/totalMV)*100).toFixed(1):'0.0'}%</span>
           </div>
         ))}
       </div>
@@ -154,7 +154,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const [initCap,    setInitCap]      = useState<number|null>(null);  // user-settable
   const [showCapSet, setShowCapSet]   = useState(false);
   const [capInput,   setCapInput]     = useState('');
-  const [benchmark,  setBenchmark]    = useState<import('../types').HistoricalData[]>([]);  // SPY/0050 daily closes
+  const [benchmark,  setBenchmark]    = useState<HistoricalData[]>([]);  // SPY/0050 daily closes
   const benchSym = 'SPY';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pullState = usePullToRefresh(containerRef, { onRefresh: () => fetchAll(true) });
@@ -227,13 +227,16 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const equityCurve = buildEquityCurve(trades, startCap, benchmark);
   
   // Calculate Max Drawdown
-  let peak = startCap;
-  let maxDD = 0;
-  for (const point of equityCurve) {
-    if (point.value > peak) peak = point.value;
-    const dd = peak > 0 ? (peak - point.value) / peak : 0;
-    if (dd > maxDD) maxDD = dd;
-  }
+  const maxDD = useMemo(() => {
+    let peak = startCap;
+    let dd = 0;
+    for (const point of equityCurve) {
+      if (point.value > peak) peak = point.value;
+      const cur = peak > 0 ? (peak - point.value) / peak : 0;
+      if (cur > dd) dd = cur;
+    }
+    return dd;
+  }, [equityCurve, startCap]);
 
   const alloc = useMemo(() => positions.map((p,i)=>({name:p.symbol,value:p.marketValueTWD??p.marketValue??0,color:COLORS[i%COLORS.length]})), [positions]);
   const pnlData = useMemo(() => positions.map((p)=>({name:p.symbol, pnl:Math.round(p.pnl??0), color:(p.pnl??0)>=0?'#34d399':'#fb7185'})).sort((a,b)=>b.pnl-a.pnl), [positions]);
