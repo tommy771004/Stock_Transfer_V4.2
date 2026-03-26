@@ -4,7 +4,7 @@
  * Place this at the very top of any scrollable page.
  * Pass the `state` from usePullToRefresh.
  */
-import React from 'react';
+import React, { memo } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { PullState } from '../hooks/usePullToRefresh';
@@ -14,7 +14,7 @@ interface Props {
   label?: string;
 }
 
-export const PullToRefreshIndicator: React.FC<Props> = ({
+const PullToRefreshIndicatorInner: React.FC<Props> = ({
   state,
   label = '下拉更新',
 }) => {
@@ -53,4 +53,5 @@ export const PullToRefreshIndicator: React.FC<Props> = ({
   );
 };
 
+export const PullToRefreshIndicator = memo(PullToRefreshIndicatorInner);
 export default PullToRefreshIndicator;

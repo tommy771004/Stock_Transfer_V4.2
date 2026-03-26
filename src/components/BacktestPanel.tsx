@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { runBacktest, BacktestConfig } from '../services/backtestEngine';
 import { BacktestResult, HistoricalData } from '../types';
 import { motion } from 'motion/react';
@@ -9,7 +9,7 @@ interface Props {
   history: HistoricalData[];
 }
 
-export const BacktestPanel: React.FC<Props> = ({ history }) => {
+const BacktestPanelInner: React.FC<Props> = ({ history }) => {
   const { settings } = useSettings();
   const compact = settings.compactMode;
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -77,3 +77,4 @@ export const BacktestPanel: React.FC<Props> = ({ history }) => {
     </motion.div>
   );
 };
+export const BacktestPanel = memo(BacktestPanelInner);

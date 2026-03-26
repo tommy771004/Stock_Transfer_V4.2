@@ -66,7 +66,7 @@ function normalizeDate(d: string | number | null | undefined): string {
   try { return new Date(d).toISOString().slice(0,10); } catch { return ''; }
 }
 
-const EquityTip=({active,payload,label}: TooltipProps<number, string> & {payload?: any[], label?: string})=>{
+const EquityTip=({active,payload,label}: TooltipProps<number, string>)=>{
   if(!active||!payload?.length) return null;
   const portPayload=payload.find((p)=>p.dataKey==='value');
   const benchPayload=payload.find((p)=>p.dataKey==='benchmark');

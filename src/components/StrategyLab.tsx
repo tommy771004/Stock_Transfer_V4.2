@@ -156,12 +156,11 @@ export default function StrategyLab() {
   };
 
   // Build display curve from real data
-  type CurvePoint = { date?: string; portfolio?: number; benchmark?: number };
-  const curve = btResult ? (btResult.equityCurve as unknown as CurvePoint[])
+  const curve = btResult ? btResult.equityCurve
     .filter((_, i) => i % 4 === 0 || i === btResult.equityCurve.length - 1)
     .map((p) => ({
       month: String(p.date ?? '').slice(5, 10),
-      strategy: +(100 + (p.portfolio ?? 0)).toFixed(2),
+      strategy: +(100 + ((p as { equity?: number; portfolio?: number }).portfolio ?? p.equity ?? 0)).toFixed(2),
       benchmark: +(100 + (p.benchmark ?? 0)).toFixed(2),
     })) : [];
 

@@ -124,7 +124,7 @@ export default function Settings() {
     try {
       // Save all settings to persistent IPC store
       await Promise.all(
-        Object.entries(settings).map(([k, v]) => setSetting(k, v))
+        (Object.entries(settings) as [keyof typeof settings, unknown][]).map(([k, v]) => setSetting(k as string, v))
       );
       // Also keep localStorage as fallback
       localStorage.setItem('llm_trader_settings', JSON.stringify(settings));
