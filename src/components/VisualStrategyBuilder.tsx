@@ -73,13 +73,13 @@ export default function VisualStrategyBuilder({ onChange }: { onChange: (script:
       <div className="flex flex-col gap-2">
         {conditions.map((c) => (
           <div key={c.id} className="flex items-center gap-2 bg-[var(--bg-color)] p-2 rounded-lg border border-[var(--border-color)]">
-            <select value={c.indicator} onChange={(e) => updateCondition(c.id, 'indicator', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none">
+            <select aria-label="技術指標" value={c.indicator} onChange={(e) => updateCondition(c.id, 'indicator', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none">
               {INDICATORS.map(i => <option key={i} value={i}>{i}</option>)}
             </select>
-            <select value={c.operator} onChange={(e) => updateCondition(c.id, 'operator', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none">
+            <select aria-label="條件運算子" value={c.operator} onChange={(e) => updateCondition(c.id, 'operator', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none">
               {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
-            <input type="text" value={c.value} onChange={(e) => updateCondition(c.id, 'value', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none w-20" placeholder="數值/指標" />
+            <input aria-label="條件數值或指標" type="text" value={c.value} onChange={(e) => updateCondition(c.id, 'value', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none w-20" placeholder="數值/指標" />
             <button onClick={() => removeCondition(c.id)} className="ml-auto text-zinc-600 hover:text-rose-400">
               <Trash2 size={12}/>
             </button>

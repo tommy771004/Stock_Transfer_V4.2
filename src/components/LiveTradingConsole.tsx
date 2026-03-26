@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Decimal from 'decimal.js';
 import { AlertTriangle, Send, ShieldCheck, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../../Api';
@@ -44,7 +45,7 @@ export default function LiveTradingConsole() {
     }
   };
 
-  const totalCost = isFinite(qty) && isFinite(price) ? qty * price : 0;
+  const totalCost = isFinite(qty) && isFinite(price) ? new Decimal(qty).times(price).toNumber() : 0;
 
   return (
     <motion.div

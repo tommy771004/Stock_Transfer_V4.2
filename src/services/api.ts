@@ -196,7 +196,7 @@ export const getDbStats    = (): Promise<unknown> =>
   IS_ELECTRON ? E().getDbStats() : Promise.resolve(null);
 
 export const getSystemStats = (): Promise<unknown> =>
-  fetchJ('/api/stats');
+  IS_ELECTRON ? E().getSystemStats() : fetchJ('/api/stats').catch(() => null);
 
 // ── Screener (XQ-style batch scan) ───────────────────────────────────────────
 export interface ScreenerFilters {

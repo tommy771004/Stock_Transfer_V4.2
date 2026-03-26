@@ -73,11 +73,11 @@ export const Alerts: React.FC<AlertsProps> = React.memo(({ symbol }) => {
       {adding && (
         <div className={cn("space-y-2", compact ? "mb-2" : "mb-3")}>
           <div className="flex gap-2">
-            <select value={condition} onChange={e => setCondition(e.target.value as 'above' | 'below')} className={cn("bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)]", compact ? "text-xs" : "text-sm")}>
+            <select aria-label="價格條件" value={condition} onChange={e => setCondition(e.target.value as 'above' | 'below')} className={cn("bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)]", compact ? "text-xs" : "text-sm")}>
               <option value="above">高於</option>
               <option value="below">低於</option>
             </select>
-            <input type="number" min="0" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="價格" className={cn("flex-1 bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)] font-mono", compact ? "text-xs" : "text-sm")} />
+            <input aria-label="目標價格" type="number" min="0" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="價格" className={cn("flex-1 bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)] font-mono", compact ? "text-xs" : "text-sm")} />
           </div>
           <button onClick={addAlert} className={cn("w-full py-1.5 rounded-lg bg-emerald-500 text-black font-bold", compact ? "text-xs" : "text-sm")}>新增警示</button>
         </div>
