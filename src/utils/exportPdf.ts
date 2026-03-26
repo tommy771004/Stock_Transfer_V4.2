@@ -144,12 +144,12 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
         ${trades.slice(0, 50).map((t) => {
           return `
           <tr>
-            <td>${escapeHtml(String(t.date ?? t.time ?? '').slice(0,10))}</td>
+            <td>${escapeHtml(String(t.date ??  '').slice(0,10))}</td>
             <td><strong>${escapeHtml(t.symbol ?? t.ticker ?? '')}</strong></td>
-            <td><span class="badge ${String(t.type??t.action??'').includes('Buy')||t.type==='BUY'?'badge-green':'badge-red'}">${escapeHtml(String(t.type??t.action??''))}</span></td>
+            <td><span class="badge ${String(t.action??'').includes('Buy')?'badge-green':'badge-red'}">${escapeHtml(String(t.action??''))}</span></td>
             <td>${(t.entry ?? t.price ?? 0).toFixed(2)}</td>
             <td>${(t.exit ?? 0).toFixed(2)}</td>
-            <td>${(t.qty ?? t.amount ?? 0).toLocaleString()}</td>
+            <td>${(t.qty ??  0).toLocaleString()}</td>
             <td class="${(t.pnl ?? 0) >= 0 ? 'pos' : 'neg'}">${(t.pnl ?? 0) >= 0 ? '+' : ''}$${((t.pnl ?? 0)).toLocaleString('en', { maximumFractionDigits: 0 })}</td>
           </tr>`;
         }).join('')}
