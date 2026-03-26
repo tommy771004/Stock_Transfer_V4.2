@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../services/api';
 import { useToast } from './ToastContext';
+import { Quote } from '../types';
 
 interface TickerItem { symbol: string; pct: number; }
 
@@ -26,7 +27,7 @@ export const MarketDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const fetchTickers = useCallback(async () => {
     try {
       const data = await api.getBatchQuotes(TICKER_SYMBOLS);
-      setTickers((Array.isArray(data) ? data : []).filter(Boolean).map((q: any) => ({ symbol: q?.symbol ?? '', pct: q?.regularMarketChangePercent ?? 0 })));
+      setTickers((Array.isArray(data) ? data : []).filter(Boolean).map((q: Quote) => ({ symbol: q.symbol ?? '', pct: q.regularMarketChangePercent ?? 0 })));
     } catch (e) {
       console.error('Failed to fetch tickers:', e);
       toastRef.current('Failed to fetch tickers: ' + (e instanceof Error ? e.message : 'Unknown error'), 'error');

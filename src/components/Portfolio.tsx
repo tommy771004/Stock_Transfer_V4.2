@@ -34,8 +34,10 @@ interface Props {
   onGoJournal?:  (sym?:string) => void;
 }
 
+type PortfolioStatus = 'loading' | 'refreshing' | 'idle';
+
 // Build equity curve from trades
-function buildEquityCurve(trades:any[], start:number, benchCloses:any[]=[]) {
+function buildEquityCurve(trades:Trade[], start:number, benchCloses:Pick<import('../types').HistoricalData,'date'|'close'>[]=[]) {
   if (!trades.length) return [];
   const sorted=[...trades]
     .filter(t => t && typeof t === 'object')
@@ -139,10 +141,9 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const { settings } = useSettings();
   const compact = Boolean(settings.compactMode);
   const [positions,  setPos]          = useState<Position[]>([]);
-  const [trades,     setTrades]       = useState<any[]>([]);
+  const [trades,     setTrades]       = useState<Trade[]>([]);
   const [usdtwd,     setUsdtwd]       = useState(32.5); // fallback, fetched dynamically
-  const [loading,    setLoading]      = useState(true);
-  const [refreshing, setRefreshing]   = useState(false);
+  const [status,     setStatus]       = useState<PortfolioStatus>('loading');
   const [editIdx,    setEditIdx]      = useState<number|null>(null);
   const [editBuf,    setEditBuf]      = useState<Partial<Position>>({});
   const [showAdd,    setShowAdd]      = useState(false);
@@ -151,13 +152,13 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const [initCap,    setInitCap]      = useState<number|null>(null);  // user-settable
   const [showCapSet, setShowCapSet]   = useState(false);
   const [capInput,   setCapInput]     = useState('');
-  const [benchmark,  setBenchmark]    = useState<any[]>([]);  // SPY/0050 daily closes
+  const [benchmark,  setBenchmark]    = useState<import('../types').HistoricalData[]>([]);  // SPY/0050 daily closes
   const [benchSym,   setBenchSym]     = useState('SPY');
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pullState = usePullToRefresh(containerRef, { onRefresh: () => fetchAll(true) });
 
   const fetchAll = useCallback(async(quiet=false)=>{
-    if(!quiet) setLoading(true); else setRefreshing(true);
+    setStatus(quiet ? 'refreshing' : 'loading');
     try {
       const [posData,tradeData,fxRate]=await Promise.all([
         api.getPositions().catch(()=>({positions:[],usdtwd:32.5})),
@@ -171,13 +172,16 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
       // Auto-set initial capital to total cost if not set by user
       setInitCap(prev => {
         if(prev===null&&pos.length){
-          const totalCost=pos.reduce((s:number,p:any)=>s+p.avgCost*p.shares*(p.currency==='TWD'?1:rate),0);
+          const totalCost=pos.reduce((s:number,p:Position)=>{
+            const cost=Number(p.avgCost)*Number(p.shares)*(p.currency==='TWD'?1:rate);
+            return s+(isFinite(cost)?cost:0);
+          },0);
           return Math.round(totalCost)||1_000_000;
         }
         return prev;
       });
     } catch(e){console.error(e);}
-    finally{setLoading(false);setRefreshing(false);}
+    finally{setStatus('idle');}
   },[]);
 
   useEffect(()=>{fetchAll();},[fetchAll]);
@@ -193,7 +197,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
 
         const hist = await api.getHistory(benchSym, {period1,interval:'1d'});
         if(!cancelled && Array.isArray(hist) && hist.length>1){
-          const closes=hist.filter((r:any)=>r?.close&&isFinite(Number(r.close)));
+          const closes=hist.filter(r=>r?.close&&isFinite(Number(r.close)));
           setBenchmark(closes);
         }
       } catch { /**/ }
@@ -204,7 +208,10 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   // Derived
   const safeRate   = usdtwd > 0 ? usdtwd : 32.5; // guard against zero/NaN
   const totalMV   = positions.reduce((s,p)=>s+(p.marketValueTWD??p.marketValue??0),0);
-  const totalCost = positions.reduce((s,p)=>s+p.avgCost*p.shares*(p.currency==='TWD'?1:safeRate),0);
+  const totalCost = positions.reduce((s,p)=>{
+    const cost=Number(p.avgCost)*Number(p.shares)*(p.currency==='TWD'?1:safeRate);
+    return s+(isFinite(cost)?cost:0);
+  },0);
   const totalPnL  = totalMV-totalCost;
   const totalPct  = totalCost>0?(totalPnL/totalCost)*100:0;
   const today     = new Date().toISOString().slice(0,10);
@@ -251,7 +258,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
     if(v>0){setInitCap(v);setShowCapSet(false);}
   };
 
-  if(loading) return <div className="h-full flex items-center justify-center"><Loader2 className="w-7 h-7 text-emerald-400 animate-spin"/></div>;
+  if(status === 'loading') return <div className="h-full flex items-center justify-center"><Loader2 className="w-7 h-7 text-emerald-400 animate-spin"/></div>;
 
   return (
     <motion.div
@@ -355,9 +362,9 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
             <div className="text-sm text-[var(--text-color)] opacity-50 mt-0.5">即時報價 · 每次刷新重新取得</div>
           </div>
           <div className="flex gap-2">
-            <button onClick={()=>fetchAll(true)} disabled={refreshing}
+            <button onClick={()=>fetchAll(true)} disabled={status==='refreshing'}
               className={cn("flex items-center gap-1 rounded-xl bg-[var(--border-color)] text-[var(--text-color)] opacity-70 border border-[var(--border-color)] hover:opacity-100 transition-colors", compact ? "px-2 py-1 text-xs" : "px-2.5 py-1.5 text-sm")}>
-              <RefreshCw size={compact ? 12 : 14} className={refreshing?'animate-spin':''}/> 刷新
+              <RefreshCw size={compact ? 12 : 14} className={status==='refreshing'?'animate-spin':''}/> 刷新
             </button>
             <button onClick={()=>{setShowAdd(v=>!v);setSaveErr('');}}
               className={cn("flex items-center gap-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors", compact ? "px-2 py-1 text-xs" : "px-2.5 py-1.5 text-sm")}>

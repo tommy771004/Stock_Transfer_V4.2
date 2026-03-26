@@ -44,7 +44,9 @@ async function callOllama(prompt: string, model: string, jsonMode: boolean = tru
   });
   if (!res.ok) throw Object.assign(new Error(`Ollama ${res.status}`), { status: res.status });
   const data = await res.json();
-  return data.response as string;
+  const text = data?.response;
+  if (typeof text !== 'string') throw new Error('Ollama response missing text content');
+  return text;
 }
 
 // ── OpenRouter call ───────────────────────────────────────────────────────────
@@ -71,7 +73,10 @@ async function callOpenRouter(prompt: string, model: string, jsonMode: boolean =
     const err = await res.json().catch(() => ({}));
     throw Object.assign(new Error(`OpenRouter ${res.status}: ${err?.error?.message ?? ''}`), { status: res.status });
   }
-  return (await res.json()).choices[0].message.content as string;
+  const json = await res.json();
+  const text = json?.choices?.[0]?.message?.content;
+  if (typeof text !== 'string') throw new Error('OpenRouter response missing text content');
+  return text;
 }
 
 // ── Router: Ollama vs OpenRouter ──────────────────────────────────────────────
@@ -94,7 +99,7 @@ const MTF_NEUTRAL = (msg: string): MTFResult => ({
   ],
   synthesis: msg, score: 50, overallTrend: '中性',
 });
-const SENT_NEUTRAL = (vix: string, msg: string) => ({
+const SENT_NEUTRAL = (vix: string, msg: string): SentimentData => ({
   overall: '中立 (Neutral)', score: 50, vixLevel: vix,
   putCallRatio: 'N/A', marketBreadth: 'N/A',
   keyDrivers: [msg], aiAdvice: msg,
@@ -232,9 +237,9 @@ export async function analyzeStock(
   } catch (err: unknown) {
     const price = quoteData?.regularMarketPrice ?? 100;
     const kind = classifyError(err);
-    if (kind === 'missing') return errAnalysis(price, '⚠️ OpenRouter API Key 未設定。請至「系統設定」輸入 Key，或勾選 Ollama 本地模式。') as AIAnalysisResult;
-    if (kind === 'unauth') return errAnalysis(price, '⚠️ API Key 無效（401 Unauthorized）。') as AIAnalysisResult;
-    if (kind === 'quota') return errAnalysis(price, '⚠️ AI 服務達配額限制，請稍後再試。') as AIAnalysisResult;
+    if (kind === 'missing') return errAnalysis(price, '⚠️ OpenRouter API Key 未設定。請至「系統設定」輸入 Key，或勾選 Ollama 本地模式。');
+    if (kind === 'unauth') return errAnalysis(price, '⚠️ API Key 無效（401 Unauthorized）。');
+    if (kind === 'quota') return errAnalysis(price, '⚠️ AI 服務達配額限制，請稍後再試。');
     console.error('analyzeStock:', err);
     return errAnalysis(price, 'AI 回傳格式不符，已套用預設值');
   }
@@ -355,11 +360,11 @@ JSON: {"overall":"樂觀 (Bullish)|悲觀 (Bearish)|中立 (Neutral)","score":0-
     return parsed;
   } catch (err: unknown) {
     const kind = classifyError(err);
-    if (kind === 'missing') return SENT_NEUTRAL(vix, '⚠️ API Key 未設定，請至「系統設定」輸入。') as SentimentData;
-    if (kind === 'unauth')  return SENT_NEUTRAL(vix, '⚠️ API Key 無效（401）。') as SentimentData;
-    if (kind === 'quota')   return SENT_NEUTRAL(vix, '⚠️ 配額限制，請稍後再試。') as SentimentData;
+    if (kind === 'missing') return SENT_NEUTRAL(vix, '⚠️ API Key 未設定，請至「系統設定」輸入。');
+    if (kind === 'unauth')  return SENT_NEUTRAL(vix, '⚠️ API Key 無效（401）。');
+    if (kind === 'quota')   return SENT_NEUTRAL(vix, '⚠️ 配額限制，請稍後再試。');
     console.error('analyzeSentiment:', err);
-    return SENT_NEUTRAL(vix, 'AI 回傳格式不符，已套用預設值') as SentimentData;
+    return SENT_NEUTRAL(vix, 'AI 回傳格式不符，已套用預設值');
   }
 }
 
