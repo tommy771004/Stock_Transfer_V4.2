@@ -56,7 +56,8 @@ function getHeatmapMonths(dailyMap: Record<string, number>): string[] {
   return [...months].sort().slice(-6); // last 6 months
 }
 
-const MonthTip = ({ active, payload, label }: any) => {
+interface MonthTipProps { active?: boolean; payload?: { value: number }[]; label?: string; }
+const MonthTip = ({ active, payload, label }: MonthTipProps) => {
   if (!active || !payload?.length) return null;
   const v = payload[0].value;
   return (
@@ -94,22 +95,28 @@ export default function TradeJournal() {
 
   // ── Add new trade ─────────────────────────────────────────────────────────
   const handleAdd = async () => {
+    const entryNum = Number(form.entry);
+    const exitNum  = Number(form.exit);
+    const qtyNum   = Number(form.qty);
     if (!form.ticker || !form.entry || !form.exit || !form.qty) {
       setErr('請填入代碼、進場價、出場價、數量'); return;
+    }
+    if (!isFinite(entryNum) || entryNum <= 0 || !isFinite(exitNum) || exitNum <= 0 || !isFinite(qtyNum) || qtyNum <= 0) {
+      setErr('進場價、出場價、數量必須為有效正數'); return;
     }
     setSaving(true); setErr('');
     try {
       const actionStr = form.action || '';
       const isBuy = actionStr.includes('Buy') || actionStr.includes('做多');
-      const pnl = (Number(form.exit) - Number(form.entry)) * Number(form.qty) * (isBuy ? 1 : -1);
+      const pnl = (exitNum - entryNum) * qtyNum * (isBuy ? 1 : -1);
       const t = await addTrade({
         date: form.date, ticker: form.ticker.toUpperCase(), action: form.action,
-        entry: Number(form.entry), exit: Number(form.exit), qty: Number(form.qty),
+        entry: entryNum, exit: exitNum, qty: qtyNum,
         notes: form.notes, pnl: +pnl.toFixed(2), status: pnl >= 0 ? 'Win' : 'Loss',
       });
       setTrades(p => [t, ...p]);
       setAdding(false); setForm({ ...BLANK });
-    } catch(e:any) { setErr(e.message ?? '新增失敗'); }
+    } catch(e: unknown) { setErr(e instanceof Error ? e.message : '新增失敗'); }
     finally { setSaving(false); }
   };
 
@@ -128,13 +135,13 @@ export default function TradeJournal() {
       await updateTrade(merged);
       setTrades(p => p.map(t => t.id === editId ? merged : t));
       setEditId(null); setEditBuf({});
-    } catch(e:any) { setErr(e.message ?? '更新失敗'); }
+    } catch(e: unknown) { setErr(e instanceof Error ? e.message : '更新失敗'); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
     try { await deleteTrade(id); setTrades(p => p.filter(t => t.id !== id)); }
-    catch(e:any) { setErr(e.message ?? '刪除失敗'); }
+    catch(e: unknown) { setErr(e instanceof Error ? e.message : '刪除失敗'); }
     finally { setDeleteConfirmId(null); }
   };
 
@@ -146,14 +153,14 @@ export default function TradeJournal() {
     a.download = '交易日誌.csv'; a.click();
   };
 
-  const fld = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
-  const efld = (k: string, v: any)   => setEditBuf(p => ({ ...p, [k]: v }));
+  const fld = (k: string, v: string)         => setForm(p => ({ ...p, [k]: v }));
+  const efld = (k: string, v: string | number) => setEditBuf(p => ({ ...p, [k]: v }));
 
   const wins    = trades.filter(t => t.pnl > 0);
   const netPnL  = trades.reduce((s,t) => s + (t.pnl ?? 0), 0);
   const winRate = trades.length > 0 ? ((wins.length/trades.length)*100).toFixed(1) : '0.0';
-  const gross   = wins.reduce((s,t) => s+t.pnl, 0);
-  const grossL  = Math.abs(trades.filter(t=>t.pnl<0).reduce((s,t)=>s+t.pnl,0));
+  const gross   = wins.reduce((s,t) => s+(t.pnl??0), 0);
+  const grossL  = Math.abs(trades.filter(t=>(t.pnl??0)<0).reduce((s,t)=>s+(t.pnl??0),0));
   const pf      = grossL > 0 ? (gross/grossL).toFixed(2) : gross > 0 ? '∞' : '0.00';
   const monthlyPnL = buildMonthlyPnL(trades);
 

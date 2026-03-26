@@ -1,20 +1,21 @@
 import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Target, Activity } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Trade } from '../types';
 
 interface PerformanceSummaryProps {
-  trades: any[];
+  trades: Trade[];
 }
 
 export const PerformanceSummary: React.FC<PerformanceSummaryProps> = React.memo(({ trades }) => {
   const { totalPnL, winRate, maxDrawdown } = useMemo(() => {
-    const total = trades.reduce((acc, t) => acc + (t.pnl || 0), 0);
-    const wins = trades.filter(t => t.pnl > 0).length;
+    const total = trades.reduce((acc, t) => acc + (t.pnl ?? 0), 0);
+    const wins = trades.filter(t => (t.pnl ?? 0) > 0).length;
     const wr = trades.length > 0 ? (wins / trades.length) * 100 : 0;
 
     let peak = 0, mdd = 0, running = 0;
     trades.forEach(t => {
-      running += (t.pnl || 0);
+      running += (t.pnl ?? 0);
       if (running > peak) peak = running;
       const dd = peak - running;
       if (dd > mdd) mdd = dd;
@@ -31,8 +32,16 @@ export const PerformanceSummary: React.FC<PerformanceSummaryProps> = React.memo(
     </div>
   );
 });
+PerformanceSummary.displayName = 'PerformanceSummary';
 
-function SummaryCard({ title, value, icon: Icon, color }: { title: string, value: string, icon: any, color: string }) {
+interface SummaryCardProps {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  color: string;
+}
+
+function SummaryCard({ title, value, icon: Icon, color }: SummaryCardProps) {
   return (
     <div className="liquid-glass rounded-2xl p-5 border border-zinc-800 flex items-center gap-4 bg-zinc-900/50">
       <div className={cn("p-3 rounded-xl bg-zinc-800/50", color)}>

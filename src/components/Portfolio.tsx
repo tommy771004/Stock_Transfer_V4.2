@@ -241,8 +241,11 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
     catch(e:any){setSaveErr(e.message??'儲存失敗');}
   };
   const handleAdd=async()=>{
+    const sharesNum = Number(newPos.shares);
+    const avgCostNum = Number(newPos.avgCost);
     if(!newPos.symbol||!newPos.shares||!newPos.avgCost){setSaveErr('請填入代碼、股數、均價');return;}
-    const pos:Position={symbol:newPos.symbol.toUpperCase(),name:newPos.name||newPos.symbol.toUpperCase(),shares:Number(newPos.shares),avgCost:Number(newPos.avgCost),currency:newPos.currency};
+    if(!isFinite(sharesNum)||sharesNum<=0||!isFinite(avgCostNum)||avgCostNum<=0){setSaveErr('股數與均價必須為有效正數');return;}
+    const pos:Position={symbol:newPos.symbol.toUpperCase(),name:newPos.name||newPos.symbol.toUpperCase(),shares:sharesNum,avgCost:avgCostNum,currency:newPos.currency};
     const updated=[...positions,pos];
     await persist(updated); setShowAdd(false); setNewPos({symbol:'',name:'',shares:'',avgCost:'',currency:'USD'}); fetchAll(true);
   };

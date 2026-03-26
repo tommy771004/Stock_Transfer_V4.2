@@ -104,7 +104,7 @@ export default function SystemLogs() {
         return { user:stats.cpuUser, system:stats.cpuSystem, time:now };
       });
       setSysStats(stats);
-    } catch { /**/ }
+    } catch(e) { console.warn("[SystemLogs] loadStats:", e); }
   }, []);
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function SystemLogs() {
         if (res.ok) {
           setLogs(await res.json());
         }
-      } catch { /**/ }
+      } catch(e) { console.warn("[SystemLogs] fetchLogs:", e); }
     };
     fetchLogs();
     const id = setInterval(fetchLogs, 5000);
@@ -141,8 +141,8 @@ export default function SystemLogs() {
       try {
         const d = await api.getAlerts();
         if (mounted) setAlerts(Array.isArray(d) ? d : []);
-      } catch {
-        // ignore
+      } catch(e) {
+        console.warn('[SystemLogs] fetchAlerts:', e);
       } finally {
         if (mounted) setAlertLoad(false);
       }
@@ -161,12 +161,12 @@ export default function SystemLogs() {
       setAlerts(p => [a, ...p]);
       setAlertForm({ symbol:'', condition:'above', target:'' });
       setAddingAlert(false); setAlertErr('');
-    } catch(e:any) { setAlertErr(e.message ?? '新增失敗'); }
+    } catch(e: unknown) { setAlertErr(e instanceof Error ? e.message : '新增失敗'); }
   };
 
   const handleDeleteAlert = async (id: number) => {
     try { await api.deleteAlert(id); setAlerts(p => p.filter(a => a.id !== id)); }
-    catch { /**/ }
+    catch(e) { console.warn("[SystemLogs] deleteAlert:", e); }
   };
 
   const toggleBroker = (id: string) => {
@@ -308,7 +308,10 @@ export default function SystemLogs() {
                   </div>
                   <div>
                     <div className="text-xs text-slate-500 mb-1">觸發條件</div>
-                    <select value={alertForm.condition} onChange={e => setAlertForm(p => ({...p, condition:e.target.value as any}))}
+                    <select value={alertForm.condition} onChange={e => {
+                      const val = e.target.value;
+                      if (val === 'above' || val === 'below') setAlertForm(p => ({...p, condition: val}));
+                    }}
                       className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white text-base sm:text-sm focus:outline-none">
                       <option value="above">📈 高於（突破）</option>
                       <option value="below">📉 低於（跌破）</option>

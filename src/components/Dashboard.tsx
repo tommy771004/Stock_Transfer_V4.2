@@ -18,7 +18,7 @@ import { theme } from '../lib/theme';
 import * as api from '../services/api';
 import ChartWidget from './ChartWidget';
 import { PerformanceSummary } from './PerformanceSummary';
-import { Quote, HistoricalData, AIAnalysisResult, SentimentData } from '../types';
+import { Quote, HistoricalData, AIAnalysisResult, SentimentData, Trade } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
 
 const MemoizedChartWidget = memo(ChartWidget);
@@ -31,6 +31,9 @@ import { IS_AI_ENABLED } from '../constants';
 import { analyzeStock, analyzeSentiment } from '../services/aiService';
 import { calculateRSI, calculateMACD, calculateKD, calculateVWAP } from '../lib/indicators';
 
+type FetchStatus = 'loading' | 'refreshing' | 'idle';
+type AiStatus = 'idle' | 'analyzing' | 'sentiment' | 'done';
+
 export default function Dashboard({ model, symbol }: { model: string, symbol: string }) {
   const { settings } = useSettings();
   const compact = settings.compactMode;
@@ -39,17 +42,13 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
   const [marketData, setMarketData] = useState<Partial<Quote>[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [sentimentAnalysis, setSentimentAnalysis] = useState<SentimentData | null>(null);
-  const [recentTrades, setRecentTrades] = useState<any[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isSentimentLoading, setIsSentimentLoading] = useState(false);
+  const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
+  const [fetchStatus, setFetchStatus] = useState<FetchStatus>('loading');
+  const [aiStatus, setAiStatus] = useState<AiStatus>('idle');
   const analyzingRef = useRef(false);
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-
   const fetchData = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    else setIsRefreshing(true);
+    setFetchStatus(quiet ? 'refreshing' : 'loading');
     try {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
@@ -61,16 +60,15 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
         fetch(`/api/market-summary?symbol=${symbol}`).then(r => r.json()).catch(() => []),
         api.getTrades().catch(() => [])
       ]);
-      
+
       if (quoteData) setQuote(quoteData);
       setHistoricalData(Array.isArray(historyData) ? historyData : []);
       setMarketData(Array.isArray(mData) ? mData : []);
-      setRecentTrades(Array.isArray(tradesData) ? tradesData.slice(0, 5) : []); 
+      setRecentTrades(Array.isArray(tradesData) ? tradesData.slice(0, 5) : []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      setFetchStatus('idle');
     }
   }, [symbol]);
 
@@ -85,18 +83,17 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
 
       try {
         analyzingRef.current = true;
-        if (mounted) setIsAnalyzing(true);
+        if (mounted) setAiStatus('analyzing');
         const analysis = await analyzeStock(symbol, quote, historicalData, model);
         if (mounted) setAiAnalysis(analysis);
-        if (mounted) setIsAnalyzing(false);
 
-        if (mounted) setIsSentimentLoading(true);
+        if (mounted) setAiStatus('sentiment');
         const sentiment = await analyzeSentiment(marketData, model, String(settings.systemInstruction || ''));
         if (mounted) setSentimentAnalysis(sentiment);
-        if (mounted) setIsSentimentLoading(false);
+        if (mounted) setAiStatus('done');
       } catch (error) {
         console.error("Error running AI analysis:", error);
-        if (mounted) { setIsAnalyzing(false); setIsSentimentLoading(false); }
+        if (mounted) setAiStatus('idle');
       } finally {
         analyzingRef.current = false;
       }
@@ -110,9 +107,10 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
     if (!Array.isArray(historicalData) || historicalData.length === 0) return null;
     
     // Calculate indicators
-    const closes = historicalData.map(d => Number(d?.close) || 0);
-    const highs = historicalData.map(d => Number(d?.high) || 0);
-    const lows = historicalData.map(d => Number(d?.low) || 0);
+    const toNum = (v: unknown) => { const n = Number(v); return isFinite(n) ? n : 0; };
+    const closes = historicalData.map(d => toNum(d?.close));
+    const highs   = historicalData.map(d => toNum(d?.high));
+    const lows    = historicalData.map(d => toNum(d?.low));
 
     const rsiArr = calculateRSI(closes);
     const macdArr = calculateMACD(closes);
@@ -186,10 +184,10 @@ const exportToCSV = (data: any[], filename: string) => {
                 </div>
                 <button
                   onClick={() => fetchData(true)}
-                  disabled={isRefreshing}
+                  disabled={fetchStatus === 'refreshing'}
                   className={cn("rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 transition-all press-feedback shrink-0", compact ? "p-2" : "p-2 md:p-3")}
                 >
-                  <Loader2 className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
+                  <Loader2 className={cn("w-5 h-5", fetchStatus === 'refreshing' && "animate-spin")} />
                 </button>
                 <button 
                   onClick={() => exportToCSV(historicalData, symbol)}
@@ -217,10 +215,10 @@ const exportToCSV = (data: any[], filename: string) => {
 
           {/* Technical Indicators Grid - Compact */}
           <div className={cn("grid grid-cols-2 md:grid-cols-4", compact ? "gap-2" : "gap-4")}>
-            <IndicatorCard title="RSI (14)" value={indicators?.rsi || '-'} status={indicators?.rsiStatus as any || 'neutral'} label={indicators?.rsiLabel || '-'} />
-            <IndicatorCard title="MACD" value={indicators?.macd || '-'} status={indicators?.macdStatus as any || 'neutral'} label={indicators?.macdLabel || '-'} />
-            <IndicatorCard title="KD (9,3,3)" value={indicators?.kdK || '-'} status={indicators?.kdStatus as any || 'neutral'} label={indicators?.kdLabel || '-'} />
-            <IndicatorCard title="VWAP" value={indicators?.vwap || '-'} status={indicators?.vwapStatus as any || 'neutral'} label={indicators?.vwapLabel || '-'} />
+            <IndicatorCard title="RSI (14)" value={indicators?.rsi ?? '-'} status={indicators?.rsiStatus ?? 'neutral'} label={indicators?.rsiLabel ?? '-'} />
+            <IndicatorCard title="MACD" value={indicators?.macd ?? '-'} status={indicators?.macdStatus ?? 'neutral'} label={indicators?.macdLabel ?? '-'} />
+            <IndicatorCard title="KD (9,3,3)" value={indicators?.kdK ?? '-'} status={indicators?.kdStatus ?? 'neutral'} label={indicators?.kdLabel ?? '-'} />
+            <IndicatorCard title="VWAP" value={indicators?.vwap ?? '-'} status={indicators?.vwapStatus ?? 'neutral'} label={indicators?.vwapLabel ?? '-'} />
           </div>
 
           {/* Recent Trades Section */}
@@ -275,7 +273,7 @@ const exportToCSV = (data: any[], filename: string) => {
             <h3 className={cn("font-black text-[var(--text-color)] flex items-center gap-2 uppercase tracking-widest", compact ? "text-xs mb-3" : "text-sm mb-4")}>
               <BrainCircuit className="text-indigo-400" size={compact ? 14 : 16} /> AI 分析
             </h3>
-            {isAnalyzing ? (
+            {aiStatus === 'analyzing' ? (
               <div className="flex items-center gap-2 text-sm text-slate-400">
                 <Loader2 size={14} className="animate-spin" /> 分析中...
               </div>
@@ -299,7 +297,7 @@ const exportToCSV = (data: any[], filename: string) => {
             <h3 className={cn("font-black text-[var(--text-color)] flex items-center gap-2 uppercase tracking-widest", compact ? "text-xs mb-3" : "text-sm mb-4")}>
               <Activity className="text-emerald-400" size={compact ? 14 : 16} /> 市場情緒
             </h3>
-            {isSentimentLoading ? (
+            {aiStatus === 'sentiment' ? (
               <div className="flex items-center gap-2 text-sm text-slate-400">
                 <Loader2 size={14} className="animate-spin" /> 分析市場情緒中...
               </div>
