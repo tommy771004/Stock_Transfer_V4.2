@@ -213,15 +213,15 @@ export default function SentimentPage({ model, symbol: initSym }: Props) {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {[
+              {([
                 ['恐慌指數 VIX',  vix, Number(vix)>25?'text-rose-400':Number(vix)>15?'text-amber-400':'text-emerald-400'],
                 ['Put/Call 比率', sentiment?.putCallRatio??'—', 'text-white'],
                 ['市場廣度',      sentiment?.marketBreadth??'—', 'text-white'],
                 ['整體趨勢',      sentiment?.overall??'—',       statusColor(sentiment?.overall??'')],
-              ].map(([l,v,cls])=>(
-                <div key={l as string} className="flex justify-between items-center">
+              ] as [string, string | number, string][]).map(([l,v,cls])=>(
+                <div key={l} className="flex justify-between items-center">
                   <span className="text-xs text-zinc-500">{l}</span>
-                  <span className={cn('text-xs font-bold font-mono', cls as string)}>{v}</span>
+                  <span className={cn('text-xs font-bold font-mono', cls)}>{v}</span>
                 </div>
               ))}
             </div>

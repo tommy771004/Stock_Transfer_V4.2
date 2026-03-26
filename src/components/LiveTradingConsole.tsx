@@ -44,7 +44,7 @@ export default function LiveTradingConsole() {
     }
   };
 
-  const totalCost = qty * price;
+  const totalCost = isFinite(qty) && isFinite(price) ? qty * price : 0;
 
   return (
     <motion.div

@@ -207,6 +207,14 @@ export interface BacktestTrade {
   pnlPct?: number;
   pnl?: number;
   result?: 'WIN' | 'LOSS';
+  // PDF export / display aliases
+  time?: string;
+  symbol?: string;
+  ticker?: string;
+  action?: string;
+  entry?: number;
+  exit?: number;
+  qty?: number;
 }
 
 /** 回測績效指標 */

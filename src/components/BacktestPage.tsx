@@ -123,7 +123,10 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
   const [period2,      setPeriod2]      = useState(() => new Date().toISOString().split('T')[0]);
   const [capital,      setCapital]      = useState('1000000');
   const [strategy,     setStrategy]     = useState<StratId>('ma_crossover');
-  const [running,      setRunning]      = useState(false);
+  type BtRunState = 'idle' | 'running' | 'comparing';
+  const [runState,     setRunState]     = useState<BtRunState>('idle');
+  const running   = runState === 'running';
+  const comparing = runState === 'comparing';
   const [result,       setResult]       = useState<BacktestResult & { strategy: string } | null>(null);
   const [error,        setError]        = useState('');
   const [tradeSort,    setTradeSort]    = useState<'date'|'pnl'>('date');
@@ -133,14 +136,13 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
   // Multi-strategy compare
   const [compareMode,    setCompareMode]    = useState(false);
   const [compareResults, setCompareResults] = useState<Record<string, BacktestResult & { strategy: string }>>({});
-  const [comparing,      setComparing]      = useState(false);
 
   const strat = STRATEGIES.find(s=>s.id===strategy) ?? STRATEGIES[0];
 
   const handleCompare = async () => {
     const sym = symbol.trim().toUpperCase();
     if (!sym) { setError('請輸入股票代碼'); return; }
-    setComparing(true); setError(''); setCompareResults({});
+    setRunState('comparing'); setError(''); setCompareResults({});
     const cap = parseInt(capital.replace(/,/g,''),10)||1_000_000;
     const results: Record<string, BacktestResult & { strategy: string }> = {};
     
@@ -157,7 +159,7 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
     
     setCompareResults({ ...results });
     setCompareMode(true);
-    setComparing(false);
+    setRunState('idle');
   };
 
   const handleRun = async () => {
@@ -169,7 +171,7 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
     // ← increment key every run to force chart remount
     chartKeyRef.current += 1;
 
-    setRunning(true); setError(''); setResult(null);
+    setRunState('running'); setError(''); setResult(null);
     try {
       const cap = parseInt(capital.replace(/,/g,''),10) || 1_000_000;
       const r = await runBacktest({symbol:sym, strategy, initialCapital:cap, startDate:period1, endDate:period2||''});
@@ -186,7 +188,7 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
     } catch(e: unknown) {
       setError(e instanceof Error ? e.message : '回測執行失敗，請稍後再試');
     } finally {
-      setRunning(false);
+      setRunState('idle');
     }
   };
 

@@ -141,8 +141,7 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
     <table>
       <thead><tr><th>日期</th><th>代號</th><th>方向</th><th>進場</th><th>出場</th><th>數量</th><th>損益</th></tr></thead>
       <tbody>
-        ${trades.slice(0, 50).map((trade) => {
-          const t = trade as any;
+        ${trades.slice(0, 50).map((t) => {
           return `
           <tr>
             <td>${escapeHtml(String(t.date ?? t.time ?? '').slice(0,10))}</td>
