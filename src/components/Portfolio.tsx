@@ -14,6 +14,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine,
   BarChart, Bar,
+  type TooltipProps,
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, RefreshCw, Loader2, Plus, Trash2, Wallet,
@@ -43,7 +44,7 @@ function buildEquityCurve(trades:Trade[], start:number, benchCloses:Pick<import(
     .filter(t => t && typeof t === 'object')
     .sort((a,b)=>(a.date??'').localeCompare(b.date??''));
   let eq=start;
-  const bMap=new Map(benchCloses.map((r:any)=>[String(r.date??'').slice(0,10),Number(r.close)]));
+  const bMap=new Map(benchCloses.map(r=>[String(r.date??'').slice(0,10),Number(r.close)]));
   const firstDate=sorted[0]?.date?.slice(0,10)??'';
   const benchKeys=[...bMap.keys()].sort();
   const startKey=benchKeys.find(k=>k>=firstDate)??benchKeys[0]??'';
@@ -59,16 +60,16 @@ function buildEquityCurve(trades:Trade[], start:number, benchCloses:Pick<import(
   }).filter(Boolean) as {date:string; value:number; benchmark?:number}[];
 }
 
-function normalizeDate(d:any):string {
+function normalizeDate(d: string | number | null | undefined): string {
   if (!d) return '';
   if (typeof d==='string') return d.slice(0,10);
   try { return new Date(d).toISOString().slice(0,10); } catch { return ''; }
 }
 
-const EquityTip=({active,payload,label}:any)=>{
+const EquityTip=({active,payload,label}:TooltipProps<number,string>)=>{
   if(!active||!payload?.length) return null;
-  const portPayload=payload.find((p:any)=>p.dataKey==='value');
-  const benchPayload=payload.find((p:any)=>p.dataKey==='benchmark');
+  const portPayload=payload.find(p=>p.dataKey==='value');
+  const benchPayload=payload.find(p=>p.dataKey==='benchmark');
   const alpha=portPayload&&benchPayload?(portPayload.value-benchPayload.value):null;
   return (
     <div className="bg-[var(--card-bg)] border border-white/10 rounded-xl p-2.5 text-xs font-mono shadow-xl min-w-[160px]">
@@ -216,7 +217,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const totalPct  = totalCost>0?(totalPnL/totalCost)*100:0;
   const today     = new Date().toISOString().slice(0,10);
   const todayPnL  = trades.filter(t=>normalizeDate(t.date)===today).reduce((s,t)=>s+(t.pnl??0),0);
-  const wins      = trades.filter(t=>t.pnl>0);
+  const wins      = trades.filter(t=>(t.pnl??0)>0);
   const winRate   = trades.length>0?((wins.length/trades.length)*100).toFixed(1):'0.0';
   const netPnL    = trades.reduce((s,t)=>s+(t.pnl??0),0);
   const startCap  = initCap??1_000_000;
@@ -238,7 +239,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const persist=async(updated:Position[])=>{
     setSaveErr('');
     try { await api.setPositions(updated.map(p=>({symbol:p.symbol,name:p.name,shares:p.shares,avgCost:p.avgCost,currency:p.currency}))); }
-    catch(e:any){setSaveErr(e.message??'儲存失敗');}
+    catch(e: unknown){setSaveErr(e instanceof Error ? e.message : '儲存失敗');}
   };
   const handleAdd=async()=>{
     const sharesNum = Number(newPos.shares);

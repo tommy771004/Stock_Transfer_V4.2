@@ -11,7 +11,7 @@ const getOpenRouterKey = async (): Promise<string> => {
   try {
     const v = await api.getSetting<string>('openrouterKey');
     if (v && typeof v === 'string' && v.trim()) return v.trim();
-  } catch { /**/ }
+  } catch(e) { console.warn('[aiService] getSetting openrouterKey:', e); }
   const s = getSettings();
   const env = (import.meta as unknown as { env: Record<string, string> }).env;
   return s.openrouterKey?.trim() || s.openaiKey?.trim() || env.VITE_OPENROUTER_API_KEY || '';
@@ -20,7 +20,7 @@ const getOllamaBase = async (): Promise<string> => {
   try {
     const v = await api.getSetting<string>('ollamaBaseUrl');
     if (v && typeof v === 'string' && v.trim()) return v.trim();
-  } catch { /**/ }
+  } catch(e) { console.warn('[aiService] getSetting ollamaBaseUrl:', e); }
   const s = getSettings();
   return s.ollamaBaseUrl?.trim() || 'http://localhost:11434';
 };
