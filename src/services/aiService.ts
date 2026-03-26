@@ -361,10 +361,15 @@ export async function getTradingStrategy(
 }
 
 function buildSentimentPrompt(marketData: Partial<Quote>[], systemInstruction: string): string {
-  const summary = (marketData ?? []).map((q) => ({
-    symbol: q?.symbol, price: q?.regularMarketPrice,
+  // 使用 Array.isArray 來做最嚴格的把關
+  const safeMarketData = Array.isArray(marketData) ? marketData : [];
+  
+  const summary = safeMarketData.map((q) => ({
+    symbol: q?.symbol, 
+    price: q?.regularMarketPrice,
     change: q?.regularMarketChangePercent?.toFixed(2),
   }));
+
   return `${systemInstruction ? systemInstruction + '\n\n' : ''}Macroeconomist sentiment analysis. Market: ${JSON.stringify(summary)}
 JSON: {"overall":"樂觀 (Bullish)|悲觀 (Bearish)|中立 (Neutral)","score":0-100,"vixLevel":"string","putCallRatio":"string","marketBreadth":"string","keyDrivers":["Traditional Chinese x3"],"aiAdvice":"Traditional Chinese"}`;
 }
