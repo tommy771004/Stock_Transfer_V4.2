@@ -6,10 +6,9 @@
  * Fix: Better Chinese labels and beginner explanations
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Server, RefreshCw,
+import { RefreshCw,
   Shield, Cpu,
-  Zap, Bell, Plus, Trash2, TrendingUp, TrendingDown,
+  Bell, Plus, Trash2, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
@@ -46,7 +45,16 @@ const logColor: Record<string,string> = {
   TRADE:'text-emerald-300 font-bold', NET:'text-cyan-400', WARN:'text-rose-400 font-bold',
 };
 
-const MetricBar = ({ label, value, max, color, unit='%', desc }: any) => (
+interface MetricBarProps {
+  label: string;
+  value: number;
+  max: number;
+  color: string;
+  unit?: string;
+  desc?: string;
+}
+
+const MetricBar = ({ label, value, max, color, unit='%', desc }: MetricBarProps) => (
   <div>
     <div className="flex justify-between items-center mb-1">
       <span className="text-sm text-slate-400 font-semibold">{label}</span>
@@ -66,7 +74,7 @@ export default function SystemLogs() {
   const [logs,       setLogs]       = useState<LogEntry[]>([]);
   const [logFilter,  setLogFilter]  = useState<string>('ALL');
   const [sysStats,   setSysStats]   = useState<SysStats|null>(null);
-  const [prevCpu,    setPrevCpu]    = useState<{user:number;system:number;time:number}|null>(null);
+  const [,           setPrevCpu]    = useState<{user:number;system:number;time:number}|null>(null);
   const [cpuPct,     setCpuPct]     = useState(0);
   const [tab,        setTab]        = useState<'broker'|'logs'|'alerts'|'system'>('broker');
 

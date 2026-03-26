@@ -3,7 +3,7 @@
  * Unified data access layer — auto-detects Electron IPC vs web fetch.
  */
 
-import { Quote, NewsItem, CalendarData, WatchlistItem, Trade, Position, Alert, HistoricalData, BacktestResult, BacktestParams, ScreenerResult, TWSEData, MTFTrendRecord } from '../types';
+import { Quote, NewsItem, CalendarData, WatchlistItem, Trade, Position, Alert, HistoricalData, BacktestResult, BacktestParams, ScreenerResult, TWSEData, MTFTrendRecord, TradeDTO, mapTradeDTO } from '../types';
 
 declare global {
   interface Window {
@@ -76,21 +76,37 @@ export const getBatchQuotes = (syms: string[]): Promise<Quote[]> =>
 export const getNews = async (sym: string): Promise<NewsItem[]> => {
   const cached = getCachedData<NewsItem[]>(`news:${sym}`);
   if (cached) return cached;
-  const data = IS_ELECTRON ? await E().getNews(sym) : await fetchJ<NewsItem[]>(`/api/news/${sym}`).catch(e => { apiWarn('getNews', e); return [] as NewsItem[]; });
-  setCachedData(`news:${sym}`, data);
-  return data;
+  try {
+    const data = IS_ELECTRON ? await E().getNews(sym) : await fetchJ<NewsItem[]>(`/api/news/${sym}`);
+    setCachedData(`news:${sym}`, data);
+    return data;
+  } catch (e) {
+    apiWarn('getNews', e);
+    throw e;
+  }
 };
 
 export const getCalendar = async (sym: string): Promise<CalendarData> => {
   const cached = getCachedData<CalendarData>(`cal:${sym}`);
   if (cached) return cached;
-  const data = IS_ELECTRON ? await E().getCalendar(sym) : await fetchJ<CalendarData>(`/api/calendar/${sym}`).catch(e => { apiWarn('getCalendar', e); return {} as CalendarData; });
-  setCachedData(`cal:${sym}`, data);
-  return data;
+  try {
+    const data = IS_ELECTRON ? await E().getCalendar(sym) : await fetchJ<CalendarData>(`/api/calendar/${sym}`);
+    setCachedData(`cal:${sym}`, data);
+    return data;
+  } catch (e) {
+    apiWarn('getCalendar', e);
+    throw e;
+  }
 };
 
 export const getForexRate  = (pair = 'USDTWD=X'): Promise<number> =>
-  IS_ELECTRON ? E().getForex(pair) : fetchJ<{ rate?: number }>(`/api/forex/${pair}`).then(r => r.rate ?? 32.5).catch(e => { apiWarn('getForexRate', e); return 32.5; });
+  IS_ELECTRON ? E().getForex(pair) : fetchJ<{ rate?: number }>(`/api/forex/${pair}`).then(r => {
+    if (r.rate == null) throw new Error('Forex rate not found');
+    return r.rate;
+  }).catch(e => {
+    apiWarn('getForexRate', e);
+    throw e;
+  });
 
 export const getTWSEStock  = (stockNo: string): Promise<TWSEData> =>
   IS_ELECTRON ? E().getTWSE(stockNo) : fetchJ<TWSEData>(`/api/twse/stock/${stockNo}`);
@@ -121,8 +137,15 @@ export const setPositions  = (list: Position[]): Promise<boolean> =>
     : fetchJ<boolean>('/api/positions', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(list) });
 
 // ── Trades ────────────────────────────────────────────────────────────────────
-export const getTrades     = (): Promise<Trade[]> =>
-  IS_ELECTRON ? E().getTrades() : fetchJ<Trade[]>('/api/trades');
+export const getTrades = async (): Promise<Trade[]> => {
+  try {
+    const data = IS_ELECTRON ? await E().getTrades() as unknown as TradeDTO[] : await fetchJ<TradeDTO[]>('/api/trades');
+    return (Array.isArray(data) ? data : []).map(mapTradeDTO);
+  } catch (e) {
+    apiWarn('getTrades', e);
+    throw e;
+  }
+};
 
 export const addTrade      = (t: Partial<Trade>): Promise<Trade> =>
   IS_ELECTRON ? E().addTrade(t)
@@ -133,7 +156,7 @@ export const updateTrade   = (t: Partial<Trade>): Promise<boolean> =>
     : fetchJ<boolean>(`/api/trades/${t.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(t) });
 
 export const deleteTrade   = (id: number): Promise<boolean> =>
-  IS_ELECTRON ? E().deleteTrade(id) : fetchJ(`/api/trades/${id}`, { method:'DELETE' }).then(() => true).catch(e => { apiWarn('deleteTrade', e); return false; });
+  IS_ELECTRON ? E().deleteTrade(id) : fetchJ(`/api/trades/${id}`, { method:'DELETE' }).then(() => true).catch(e => { apiWarn('deleteTrade', e); throw e; });
 
 export const executeTrade  = (order: Partial<Trade>): Promise<Trade> =>
   IS_ELECTRON ? E().addTrade(order) // Fallback for electron if needed
@@ -141,14 +164,14 @@ export const executeTrade  = (order: Partial<Trade>): Promise<Trade> =>
 
 // ── Price Alerts ──────────────────────────────────────────────────────────────
 export const getAlerts     = (): Promise<Alert[]> =>
-  IS_ELECTRON ? E().getAlerts() : fetchJ<Alert[]>('/api/alerts').catch(e => { apiWarn('getAlerts', e); return [] as Alert[]; });
+  IS_ELECTRON ? E().getAlerts() : fetchJ<Alert[]>('/api/alerts').catch(e => { apiWarn('getAlerts', e); throw e; });
 
 export const addAlert      = (a: Omit<Alert, 'id'>): Promise<Alert> =>
   IS_ELECTRON ? E().addAlert(a)
     : fetchJ<Alert>('/api/alerts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(a) });
 
 export const deleteAlert   = (id: number): Promise<boolean> =>
-  IS_ELECTRON ? E().deleteAlert(id) : fetchJ(`/api/alerts/${id}`, { method:'DELETE' }).then(() => true).catch(e => { apiWarn('deleteAlert', e); return false; });
+  IS_ELECTRON ? E().deleteAlert(id) : fetchJ(`/api/alerts/${id}`, { method:'DELETE' }).then(() => true).catch(e => { apiWarn('deleteAlert', e); throw e; });
 
 // ── App Settings ──────────────────────────────────────────────────────────────
 export const getSetting    = async <T>(key: string): Promise<T> => {

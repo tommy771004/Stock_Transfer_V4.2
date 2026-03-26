@@ -35,7 +35,7 @@ interface Props {
   onGoJournal?:  (sym?:string) => void;
 }
 
-type PortfolioStatus = 'loading' | 'refreshing' | 'idle';
+type PortfolioStatus = 'loading' | 'refreshing' | 'idle' | 'error';
 
 // Build equity curve from trades
 function buildEquityCurve(trades:Trade[], start:number, benchCloses:Pick<import('../types').HistoricalData,'date'|'close'>[]=[]) {
@@ -66,10 +66,10 @@ function normalizeDate(d: string | number | null | undefined): string {
   try { return new Date(d).toISOString().slice(0,10); } catch { return ''; }
 }
 
-const EquityTip=({active,payload,label}:TooltipProps<number,string>)=>{
+const EquityTip=({active,payload,label}: TooltipProps<number, string> & {payload?: any[], label?: string})=>{
   if(!active||!payload?.length) return null;
-  const portPayload=payload.find(p=>p.dataKey==='value');
-  const benchPayload=payload.find(p=>p.dataKey==='benchmark');
+  const portPayload=payload.find((p)=>p.dataKey==='value');
+  const benchPayload=payload.find((p)=>p.dataKey==='benchmark');
   const alpha=portPayload&&benchPayload?(portPayload.value-benchPayload.value):null;
   return (
     <div className="bg-[var(--card-bg)] border border-white/10 rounded-xl p-2.5 text-xs font-mono shadow-xl min-w-[160px]">
@@ -96,7 +96,7 @@ const AllocationPieChart = memo(({ alloc, totalMV, compact }: { alloc: { name: s
             <Pie data={alloc} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
               {alloc.map((e,i)=><Cell key={i} fill={e.color}/>)}
             </Pie>
-            <Tooltip contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={(v: any)=>[`NT$${Number(v).toLocaleString(undefined,{maximumFractionDigits:0})}`,'市值']}/>
+            <Tooltip contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={((v: number)=>[`NT$${Number(v).toLocaleString(undefined,{maximumFractionDigits:0})}`,'市值']) as any}/>
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -123,7 +123,7 @@ const PnLBarChartPanel = memo(({ pnlData, compact }: { pnlData: { name: string; 
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false}/>
           <XAxis type="number" tick={{fill:'var(--text-color)',opacity:0.5,fontSize: compact ? 8 : 9}} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
           <YAxis dataKey="name" type="category" tick={{fill:'var(--text-color)',opacity:0.7,fontSize: compact ? 8 : 9}} tickLine={false} axisLine={false} width={compact ? 50 : 60}/>
-          <Tooltip cursor={{fill:'var(--border-color)'}} contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={(v: any)=>[`$${Number(v).toLocaleString()}`,'損益']}/>
+          <Tooltip cursor={{fill:'var(--border-color)'}} contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={((v: number)=>[`$${Number(v).toLocaleString()}`,'損益']) as any}/>
           <ReferenceLine x={0} stroke="var(--border-color)"/>
           <Bar dataKey="pnl">
             {pnlData.map((entry, index) => (
@@ -154,7 +154,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const [showCapSet, setShowCapSet]   = useState(false);
   const [capInput,   setCapInput]     = useState('');
   const [benchmark,  setBenchmark]    = useState<import('../types').HistoricalData[]>([]);  // SPY/0050 daily closes
-  const [benchSym,   setBenchSym]     = useState('SPY');
+  const benchSym = 'SPY';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pullState = usePullToRefresh(containerRef, { onRefresh: () => fetchAll(true) });
 
@@ -162,9 +162,9 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
     setStatus(quiet ? 'refreshing' : 'loading');
     try {
       const [posData,tradeData,fxRate]=await Promise.all([
-        api.getPositions().catch(()=>({positions:[],usdtwd:32.5})),
-        api.getTrades().catch(()=>[]),
-        api.getForexRate('USDTWD=X').catch(()=>32.5),
+        api.getPositions(),
+        api.getTrades(),
+        api.getForexRate('USDTWD=X'),
       ]);
       const pos=Array.isArray(posData.positions)?posData.positions:[];
       const rate = fxRate > 0 ? fxRate : (posData.usdtwd > 0 ? posData.usdtwd : 32.5);
@@ -181,8 +181,11 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
         }
         return prev;
       });
-    } catch(e){console.error(e);}
-    finally{setStatus('idle');}
+      setStatus('idle');
+    } catch(e){
+      console.error(e);
+      setStatus('error');
+    }
   },[]);
 
   useEffect(()=>{fetchAll();},[fetchAll]);
@@ -219,7 +222,6 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const todayPnL  = trades.filter(t=>normalizeDate(t.date)===today).reduce((s,t)=>s+(t.pnl??0),0);
   const wins      = trades.filter(t=>(t.pnl??0)>0);
   const winRate   = trades.length>0?((wins.length/trades.length)*100).toFixed(1):'0.0';
-  const netPnL    = trades.reduce((s,t)=>s+(t.pnl??0),0);
   const startCap  = initCap??1_000_000;
   const equityCurve = buildEquityCurve(trades, startCap, benchmark);
   
@@ -233,7 +235,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   }
 
   const alloc = useMemo(() => positions.map((p,i)=>({name:p.symbol,value:p.marketValueTWD??p.marketValue??0,color:COLORS[i%COLORS.length]})), [positions]);
-  const pnlData = useMemo(() => positions.map((p,i)=>({name:p.symbol, pnl:Math.round(p.pnl??0), color:(p.pnl??0)>=0?'#34d399':'#fb7185'})).sort((a,b)=>b.pnl-a.pnl), [positions]);
+  const pnlData = useMemo(() => positions.map((p)=>({name:p.symbol, pnl:Math.round(p.pnl??0), color:(p.pnl??0)>=0?'#34d399':'#fb7185'})).sort((a,b)=>b.pnl-a.pnl), [positions]);
 
   // Save helpers
   const persist=async(updated:Position[])=>{
@@ -263,6 +265,24 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   };
 
   if(status === 'loading') return <div className="h-full flex items-center justify-center"><Loader2 className="w-7 h-7 text-emerald-400 animate-spin"/></div>;
+  if(status === 'error') {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-zinc-900/50 rounded-3xl border border-zinc-800">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-zinc-100 mb-2">連線異常</h2>
+        <p className="text-zinc-400 mb-6 max-w-md">無法取得投資組合資料，請檢查網路連線或稍後再試。</p>
+        <button 
+          onClick={() => fetchAll()}
+          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-xl font-medium transition-colors flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          重新整理
+        </button>
+      </div>
+    );
+  }
 
   return (
     <motion.div

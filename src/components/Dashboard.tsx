@@ -6,15 +6,13 @@ import {
   AlertCircle, 
   BrainCircuit, 
   Activity, 
-  Target,
-  ArrowRight,
   CheckCircle2,
   XCircle,
   Loader2,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { theme } from '../lib/theme';
 import * as api from '../services/api';
 import ChartWidget from './ChartWidget';
 import { PerformanceSummary } from './PerformanceSummary';
@@ -23,15 +21,13 @@ import { useSettings } from '../contexts/SettingsContext';
 
 const MemoizedChartWidget = memo(ChartWidget);
 
-const SubscriptionGate = lazy(() => import('./SubscriptionGate'));
 const PaperTradingDashboard = lazy(() => import('./PaperTradingDashboard'));
 const StrategyComparison = lazy(() => import('./StrategyComparison'));
 const LiveTradingConsole = lazy(() => import('./LiveTradingConsole'));
-import { IS_AI_ENABLED } from '../constants';
 import { analyzeStock, analyzeSentiment } from '../services/aiService';
 import { calculateRSI, calculateMACD, calculateKD, calculateVWAP } from '../lib/indicators';
 
-type FetchStatus = 'loading' | 'refreshing' | 'idle';
+type FetchStatus = 'loading' | 'refreshing' | 'idle' | 'error';
 type AiStatus = 'idle' | 'analyzing' | 'sentiment' | 'done';
 
 export default function Dashboard({ model, symbol }: { model: string, symbol: string }) {
@@ -55,20 +51,20 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
       const period1 = oneYearAgo.toISOString().split('T')[0];
 
       const [quoteData, historyData, mData, tradesData] = await Promise.all([
-        api.getQuote(symbol).catch(() => null),
-        api.getHistory(symbol, { period1 }).catch(() => []),
+        api.getQuote(symbol),
+        api.getHistory(symbol, { period1 }),
         fetch(`/api/market-summary?symbol=${symbol}`).then(r => r.json()).catch(() => []),
-        api.getTrades().catch(() => [])
+        api.getTrades()
       ]);
 
       if (quoteData) setQuote(quoteData);
       setHistoricalData(Array.isArray(historyData) ? historyData : []);
       setMarketData(Array.isArray(mData) ? mData : []);
       setRecentTrades(Array.isArray(tradesData) ? tradesData.slice(0, 5) : []);
+      setFetchStatus('idle');
     } catch (error) {
       console.error("Error fetching data:", error);
-    } finally {
-      setFetchStatus('idle');
+      setFetchStatus('error');
     }
   }, [symbol]);
 
@@ -124,19 +120,19 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
 
     return {
       rsi: rsi !== undefined ? rsi.toFixed(1) : '-',
-      rsiStatus: rsi !== undefined ? (rsi > 70 ? 'bearish' : rsi < 30 ? 'bullish' : 'neutral') : 'neutral',
+      rsiStatus: (rsi !== undefined ? (rsi > 70 ? 'bearish' : rsi < 30 ? 'bullish' : 'neutral') : 'neutral') as 'bullish' | 'bearish' | 'neutral',
       rsiLabel: rsi !== undefined ? (rsi > 70 ? '超買區 (Overbought)' : rsi < 30 ? '超賣區 (Oversold)' : '中性區間 (Neutral)') : '-',
       
       macd: macd?.MACD !== undefined ? macd.MACD.toFixed(2) : '-',
-      macdStatus: macd?.histogram !== undefined ? (macd.histogram > 0 ? 'bullish' : 'bearish') : 'neutral',
+      macdStatus: (macd?.histogram !== undefined ? (macd.histogram > 0 ? 'bullish' : 'bearish') : 'neutral') as 'bullish' | 'bearish' | 'neutral',
       macdLabel: macd?.histogram !== undefined ? (macd.histogram > 0 ? '多頭排列 (Bullish)' : '空頭排列 (Bearish)') : '-',
       
       kdK: kd?.K !== undefined ? kd.K.toFixed(1) : '-',
-      kdStatus: kd?.K !== undefined ? (kd.K > 80 ? 'bearish' : kd.K < 20 ? 'bullish' : 'neutral') : 'neutral',
+      kdStatus: (kd?.K !== undefined ? (kd.K > 80 ? 'bearish' : kd.K < 20 ? 'bullish' : 'neutral') : 'neutral') as 'bullish' | 'bearish' | 'neutral',
       kdLabel: kd?.K !== undefined ? (kd.K > 80 ? '超買區 (Overbought)' : kd.K < 20 ? '超賣區 (Oversold)' : '中性區間 (Neutral)') : '-',
       
       vwap: vwap !== undefined ? vwap.toFixed(2) : '-',
-      vwapStatus: vwap !== undefined && quote ? (quote.regularMarketPrice > vwap ? 'bullish' : 'bearish') : 'neutral',
+      vwapStatus: (vwap !== undefined && quote ? (quote.regularMarketPrice > vwap ? 'bullish' : 'bearish') : 'neutral') as 'bullish' | 'bearish' | 'neutral',
       vwapLabel: vwap !== undefined && quote ? (quote.regularMarketPrice > vwap ? '價格 > VWAP' : '價格 < VWAP') : '-'
     };
   }, [historicalData, quote]);
@@ -155,6 +151,25 @@ const exportToCSV = (data: HistoricalData[], filename: string) => {
   document.body.appendChild(link);
   try { link.click(); } finally { document.body.removeChild(link); }
 };
+
+  if (fetchStatus === 'error') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-zinc-900/50 rounded-3xl border border-zinc-800">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-zinc-100 mb-2">連線異常</h2>
+        <p className="text-zinc-400 mb-6 max-w-md">無法取得 {symbol} 的市場資料，請檢查網路連線或稍後再試。</p>
+        <button 
+          onClick={() => fetchData()}
+          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-xl font-medium transition-colors flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          重新整理
+        </button>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -352,22 +367,6 @@ function IndicatorCard({ title, value, status, label }: { title: string, value: 
         </div>
         <div className="text-xs text-zinc-600 font-black uppercase tracking-widest">{label}</div>
       </div>
-    </div>
-  );
-}
-
-function TimeframeBadge({ label, status }: { label: string, status: 'bullish' | 'bearish' | 'neutral' }) {
-  return (
-    <div className={cn(
-      "flex flex-col items-center justify-center w-16 h-16 rounded-2xl border shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-md",
-      status === 'bullish' && "bg-emerald-500/10 border-emerald-500/20 text-emerald-300",
-      status === 'bearish' && "bg-rose-500/10 border-rose-500/20 text-rose-300",
-      status === 'neutral' && "bg-amber-500/10 border-amber-500/20 text-amber-300"
-    )}>
-      <span className="text-xs font-medium text-white/50 mb-1">{label}</span>
-      {status === 'bullish' && <TrendingUp className="w-5 h-5 drop-shadow-[0_0_4px_rgba(52,211,153,0.5)]" />}
-      {status === 'bearish' && <TrendingDown className="w-5 h-5 drop-shadow-[0_0_4px_rgba(251,113,133,0.5)]" />}
-      {status === 'neutral' && <Activity className="w-5 h-5 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]" />}
     </div>
   );
 }

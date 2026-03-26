@@ -65,6 +65,15 @@ const HOTKEYS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+interface DbStats {
+  trades: number;
+  positions: number;
+  watchlist: number;
+  alerts: number;
+  dataPath: string;
+  engine: string;
+}
+
 export default function Settings() {
   const [settings,      setSettings]      = useState<S>({ ...DEFAULT_SETTINGS });
   const { updateSetting } = useSettings();
@@ -72,7 +81,7 @@ export default function Settings() {
   const [saving,        setSaving]        = useState(false);
   const [active,        setActive]        = useState('api');
   const [showKey,       setShowKey]       = useState<Record<string,boolean>>({});
-  const [dbStats,       setDbStats]       = useState<unknown>(null);
+  const [dbStats,       setDbStats]       = useState<DbStats | null>(null);
   const [saveErr,       setSaveErr]       = useState('');
   const [clearConfirm, setClearConfirm] = useState(false);
   const [loaded,        setLoaded]        = useState(false);
@@ -101,7 +110,7 @@ export default function Settings() {
     })();
 
     // Load db stats
-    getDbStats().then(setDbStats).catch(e => console.warn('[Settings] getDbStats:', e));
+    getDbStats().then(res => setDbStats(res as DbStats | null)).catch(e => console.warn('[Settings] getDbStats:', e));
   }, []);
 
   const set = (key: string, val: any) => {
@@ -520,7 +529,7 @@ export default function Settings() {
                 </button>
               </Row>
               <Row label="刷新資料統計">
-                <button onClick={() => getDbStats().then(setDbStats)}
+                <button onClick={() => getDbStats().then(res => setDbStats(res as DbStats | null))}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--bg-color)] text-zinc-300 text-sm border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors">
                   <RefreshCw size={13}/> 重新整理
                 </button>

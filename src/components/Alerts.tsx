@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Plus, X, AlertCircle } from 'lucide-react';
-import { safeCn } from '../utils/helpers';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';

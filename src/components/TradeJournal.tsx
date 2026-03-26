@@ -11,7 +11,7 @@ import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from './PullToRefreshIndicator';
 import {
   History, Download, Plus, Trash2, ArrowUpRight, ArrowDownRight,
-  Loader2, AlertCircle, Edit2, Check, X, TrendingUp, TrendingDown,
+  Loader2, AlertCircle, Edit2, Check, X, TrendingUp, TrendingDown, RefreshCw
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell
@@ -74,6 +74,7 @@ const MonthTip = ({ active, payload, label }: MonthTipProps) => {
 export default function TradeJournal() {
   const [trades,   setTrades]   = useState<Trade[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
   const [saving,   setSaving]   = useState(false);
   const [adding,   setAdding]   = useState(false);
   const [editId,   setEditId]   = useState<number|null>(null);
@@ -86,9 +87,17 @@ export default function TradeJournal() {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const load = async () => {
-    try { const d = await getTrades(); setTrades(Array.isArray(d)?d:[]); }
-    catch(e) { console.error(e); }
-    finally { setLoading(false); }
+    try {
+      setLoading(true);
+      setError(null);
+      const d = await getTrades();
+      setTrades(Array.isArray(d)?d:[]);
+    } catch(e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : '連線異常');
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
   const pullState = usePullToRefresh(containerRef, { onRefresh: load });
@@ -398,7 +407,22 @@ export default function TradeJournal() {
 
         {/* ── Table ── */}
         <div className="overflow-auto flex-1 min-h-0">
-          {loading ? (
+          {error ? (
+            <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-zinc-100 font-bold">連線異常</h3>
+              <p className="text-zinc-400 text-sm max-w-xs">{error}</p>
+              <button 
+                onClick={load}
+                className="mt-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg text-sm transition-colors flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                重新整理
+              </button>
+            </div>
+          ) : loading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="animate-spin text-indigo-400" size={20}/>
             </div>

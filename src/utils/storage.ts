@@ -3,7 +3,7 @@ export const STORAGE_KEYS = {
   PORTFOLIO: 'liquid_intel_portfolio',
 };
 
-export const saveToStorage = (key: string, data: any) => {
+export const saveToStorage = <T>(key: string, data: T): void => {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
@@ -11,7 +11,7 @@ export const saveToStorage = (key: string, data: any) => {
   }
 };
 
-export const loadFromStorage = (key: string, defaultValue: any) => {
+export const loadFromStorage = <T>(key: string, defaultValue: T): T => {
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : defaultValue;

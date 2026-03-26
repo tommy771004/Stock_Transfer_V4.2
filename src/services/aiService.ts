@@ -205,19 +205,12 @@ Respond ONLY with JSON:
 }
 
 function parseAndValidateStockAnalysis(raw: string): AIAnalysisResult | null {
-  const clean = raw.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
-  let json: unknown;
   try {
-    json = JSON.parse(clean);
-  } catch {
-    const match = clean.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      json = JSON.parse(match[0]);
-    } catch { return null; }
+    return parseJSON(raw, AIAnalysisSchema);
+  } catch (e) {
+    console.error('parseAndValidateStockAnalysis error:', e);
+    return null;
   }
-  const result = AIAnalysisSchema.safeParse(json);
-  return result.success ? result.data : null;
 }
 
 export async function analyzeStock(
@@ -245,22 +238,19 @@ export async function analyzeStock(
   }
 }
 
-export async function chatWithAI(
+function buildChatPrompt(
   query: string,
   ticker: string,
   quoteData: Partial<Quote>,
   historicalData: HistoricalData[],
-  model = 'openai/gpt-4o-mini',
-  systemInstruction = ''
-) {
-  try {
-    if (!Array.isArray(historicalData)) return null;
-    const recent   = historicalData.slice(-30);
-    const price    = quoteData?.regularMarketPrice ?? 100;
-    const market   = isTW(ticker) ? '台灣股市（半導體、電子）' : '美國股市（納斯達克）';
-    const currency = quoteData?.currency ?? (isTW(ticker) ? 'TWD' : 'USD');
+  systemInstruction: string
+): string {
+  const recent   = historicalData.slice(-30);
+  const price    = quoteData?.regularMarketPrice ?? 100;
+  const market   = isTW(ticker) ? '台灣股市（半導體、電子）' : '美國股市（納斯達克）';
+  const currency = quoteData?.currency ?? (isTW(ticker) ? 'TWD' : 'USD');
 
-    const prompt = `${systemInstruction ? systemInstruction + '\n\n' : ''}You are an expert AI stock trader specialising in ${market}.
+  return `${systemInstruction ? systemInstruction + '\n\n' : ''}You are an expert AI stock trader specialising in ${market}.
 The user is asking a question about ${ticker}.
 
 Quote (${currency}): Price=${price}, Change=${quoteData?.regularMarketChange?.toFixed(2)}, ChangePercent=${quoteData?.regularMarketChangePercent?.toFixed(2)}%,
@@ -272,7 +262,19 @@ Last 30 close prices: ${recent.map((d) => d.close?.toFixed(2) ?? 'N/A').join(', 
 User Question: ${query}
 
 Respond in Traditional Chinese. Provide a concise, insightful, and professional answer. Do not use JSON.`;
+}
 
+export async function chatWithAI(
+  query: string,
+  ticker: string,
+  quoteData: Partial<Quote>,
+  historicalData: HistoricalData[],
+  model = 'openai/gpt-4o-mini',
+  systemInstruction = ''
+) {
+  try {
+    if (!Array.isArray(historicalData)) return null;
+    const prompt = buildChatPrompt(query, ticker, quoteData, historicalData, systemInstruction);
     const raw = await callAI(prompt, model, false);
     return raw;
   } catch (err: unknown) {
@@ -288,6 +290,23 @@ Respond in Traditional Chinese. Provide a concise, insightful, and professional 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  analyzeMTF
 // ═══════════════════════════════════════════════════════════════════════════════
+function buildMTFPrompt(
+  ticker: string,
+  data1h: HistoricalData[],
+  data1d: HistoricalData[],
+  data1wk: HistoricalData[],
+  systemInstruction: string
+): string {
+  const fmt = (arr: HistoricalData[]) => arr.slice(-10).map(d => d.close?.toFixed(2) ?? 'N/A').join(', ');
+  return `${systemInstruction ? systemInstruction + '\n\n' : ''}Multi-timeframe analysis for ${ticker}.
+1H closes (last 10): ${fmt(data1h)}
+1D closes (last 10): ${fmt(data1d)}
+1W closes (last 10): ${fmt(data1wk)}
+
+JSON: {"indicators":[{"name":"Chinese+English","values":["1H","1D","1W"],"statuses":["bullish|bearish|neutral","...","..."]}],"synthesis":"Traditional Chinese","score":0-100,"overallTrend":"偏多|偏空|中性"}
+Provide exactly 5 indicators.`;
+}
+
 export async function analyzeMTF(
   ticker: string, data1h: HistoricalData[], data1d: HistoricalData[], data1wk: HistoricalData[],
   model = 'openai/gpt-4o-mini',
@@ -295,15 +314,7 @@ export async function analyzeMTF(
 ): Promise<MTFResult | null> {
   try {
     if (!Array.isArray(data1h) || !Array.isArray(data1d) || !Array.isArray(data1wk)) return null;
-    const fmt = (arr: HistoricalData[]) => arr.slice(-10).map(d => d.close?.toFixed(2) ?? 'N/A').join(', ');
-    const prompt = `${systemInstruction ? systemInstruction + '\n\n' : ''}Multi-timeframe analysis for ${ticker}.
-1H closes (last 10): ${fmt(data1h)}
-1D closes (last 10): ${fmt(data1d)}
-1W closes (last 10): ${fmt(data1wk)}
-
-JSON: {"indicators":[{"name":"Chinese+English","values":["1H","1D","1W"],"statuses":["bullish|bearish|neutral","...","..."]}],"synthesis":"Traditional Chinese","score":0-100,"overallTrend":"偏多|偏空|中性"}
-Provide exactly 5 indicators.`;
-
+    const prompt = buildMTFPrompt(ticker, data1h, data1d, data1wk, systemInstruction);
     const raw = await callAI(prompt, model);
     return parseJSON(raw, MTFResultSchema);
   } catch (err: unknown) {
@@ -319,6 +330,20 @@ Provide exactly 5 indicators.`;
 // ═══════════════════════════════════════════════════════════════════════════════
 //  analyzeSentiment
 // ═══════════════════════════════════════════════════════════════════════════════
+function buildTradingStrategyPrompt(
+  ticker: string,
+  aiAnalysis: AIAnalysisResult,
+  mtfAnalysis: MTFResult,
+  systemInstruction: string
+): string {
+  return `${systemInstruction ? systemInstruction + '\n\n' : ''}Create a trading strategy for ${ticker} based on the following analysis:
+AI Analysis: ${JSON.stringify(aiAnalysis)}
+MTF Analysis: ${JSON.stringify(mtfAnalysis)}
+
+Respond ONLY with JSON:
+{"strategy":"Traditional Chinese detailed strategy","entry":"price range","exit":"price range","riskLevel":"low|medium|high","confidence":0-100}`;
+}
+
 export async function getTradingStrategy(
   ticker: string,
   aiAnalysis: AIAnalysisResult,
@@ -327,13 +352,7 @@ export async function getTradingStrategy(
   systemInstruction = ''
 ): Promise<TradingStrategy> {
   try {
-    const prompt = `${systemInstruction ? systemInstruction + '\n\n' : ''}Create a trading strategy for ${ticker} based on the following analysis:
-AI Analysis: ${JSON.stringify(aiAnalysis)}
-MTF Analysis: ${JSON.stringify(mtfAnalysis)}
-
-Respond ONLY with JSON:
-{"strategy":"Traditional Chinese detailed strategy","entry":"price range","exit":"price range","riskLevel":"low|medium|high","confidence":0-100}`;
-
+    const prompt = buildTradingStrategyPrompt(ticker, aiAnalysis, mtfAnalysis, systemInstruction);
     const raw = await callAI(prompt, model);
     return parseJSON(raw, TradingStrategySchema);
   } catch (err: unknown) {
@@ -342,16 +361,19 @@ Respond ONLY with JSON:
   }
 }
 
+function buildSentimentPrompt(marketData: Partial<Quote>[], systemInstruction: string): string {
+  const summary = (marketData ?? []).map((q) => ({
+    symbol: q?.symbol, price: q?.regularMarketPrice,
+    change: q?.regularMarketChangePercent?.toFixed(2),
+  }));
+  return `${systemInstruction ? systemInstruction + '\n\n' : ''}Macroeconomist sentiment analysis. Market: ${JSON.stringify(summary)}
+JSON: {"overall":"樂觀 (Bullish)|悲觀 (Bearish)|中立 (Neutral)","score":0-100,"vixLevel":"string","putCallRatio":"string","marketBreadth":"string","keyDrivers":["Traditional Chinese x3"],"aiAdvice":"Traditional Chinese"}`;
+}
+
 export async function analyzeSentiment(marketData: Partial<Quote>[], model = 'openai/gpt-4o-mini', systemInstruction = ''): Promise<SentimentData | null> {
   const vix = String(marketData?.find((d) => d?.symbol === '^VIX')?.regularMarketPrice?.toFixed(2) ?? 'N/A');
   try {
-    const summary = (marketData ?? []).map((q) => ({
-      symbol: q?.symbol, price: q?.regularMarketPrice,
-      change: q?.regularMarketChangePercent?.toFixed(2),
-    }));
-    const prompt = `${systemInstruction ? systemInstruction + '\n\n' : ''}Macroeconomist sentiment analysis. Market: ${JSON.stringify(summary)}
-JSON: {"overall":"樂觀 (Bullish)|悲觀 (Bearish)|中立 (Neutral)","score":0-100,"vixLevel":"string","putCallRatio":"string","marketBreadth":"string","keyDrivers":["Traditional Chinese x3"],"aiAdvice":"Traditional Chinese"}`;
-
+    const prompt = buildSentimentPrompt(marketData, systemInstruction);
     const raw = await callAI(prompt, model);
     const parsed = parseJSON(raw, SentimentDataSchema);
     if (parsed.vixLevel === 'N/A' || parsed.vixLevel === 'string') {
@@ -368,15 +390,18 @@ JSON: {"overall":"樂觀 (Bullish)|悲觀 (Bearish)|中立 (Neutral)","score":0-
   }
 }
 
-export async function analyzeNewsSentiment(news: NewsItem[], model = 'openai/gpt-4o-mini', systemInstruction = ''): Promise<SentimentData | null> {
-  try {
-    const summary = news.slice(0, 10).map(n => n.title).join('\n');
-    const prompt = `${systemInstruction ? systemInstruction + '\n\n' : ''}You are a financial news analyst. Analyze the following news headlines and provide a sentiment summary.
+function buildNewsSentimentPrompt(news: NewsItem[], systemInstruction: string): string {
+  const summary = news.slice(0, 10).map(n => n.title).join('\n');
+  return `${systemInstruction ? systemInstruction + '\n\n' : ''}You are a financial news analyst. Analyze the following news headlines and provide a sentiment summary.
 News:
 ${summary}
 
 JSON: {"overall":"樂觀 (Bullish)|悲觀 (Bearish)|中立 (Neutral)","score":0-100,"vixLevel":"N/A","putCallRatio":"N/A","marketBreadth":"N/A","keyDrivers":["Traditional Chinese x3"],"aiAdvice":"Traditional Chinese"}`;
+}
 
+export async function analyzeNewsSentiment(news: NewsItem[], model = 'openai/gpt-4o-mini', systemInstruction = ''): Promise<SentimentData | null> {
+  try {
+    const prompt = buildNewsSentimentPrompt(news, systemInstruction);
     const raw = await callAI(prompt, model);
     return parseJSON(raw, SentimentDataSchema);
   } catch (err: unknown) {

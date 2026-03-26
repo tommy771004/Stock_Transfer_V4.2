@@ -16,7 +16,7 @@ interface ChartSectionProps {
   data: HistoricalData[];
 }
 
-export const ChartSection: React.FC<ChartSectionProps> = React.memo(({ symbol, model, focusMode, data }) => {
+export const ChartSection: React.FC<ChartSectionProps> = React.memo(({ data }) => {
   const { settings } = useSettings();
   const compact = settings.compactMode;
 

@@ -53,8 +53,3 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 }
-
-/** Functional wrapper for easy use */
-export function withErrorBoundary(name: string, children: ReactNode) {
-  return <ErrorBoundary name={name}>{children}</ErrorBoundary>;
-}
