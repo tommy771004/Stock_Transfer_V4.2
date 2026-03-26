@@ -4,12 +4,9 @@
  * Fix: watchlist items now call onSymbolChange(symbol) to switch the viewed stock.
  * All indicator math inlined. ChartWidget lazy-loaded.
  */
-import { useState, useEffect, useCallback, useRef, lazy, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as api from '../services/api';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from '../utils/storage';
-import {
-  Loader2
-} from 'lucide-react';
 import { chatWithAI } from '../services/aiService';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -22,10 +19,6 @@ import { useWatchlist, useUpdateWatchlist } from '../hooks/useQueryHooks';
 import { useSettings } from '../contexts/SettingsContext';
 import { useStockAnalysis } from '../hooks/useStockAnalysis';
 import { Order, WatchlistItem, Alert } from '../types';
-
-const ChartWidget = lazy(() => import('./ChartWidget').catch(() => ({
-  default: () => <div className="absolute inset-0 flex items-center justify-center text-rose-400 text-xs">圖表載入失敗</div>,
-})));
 
 // ─────────────────────────────────────────────────────────────────────────────
 interface Props {

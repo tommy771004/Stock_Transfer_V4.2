@@ -5,20 +5,19 @@
  * The backtest results now reflect actual historical performance.
  * Enhancement: Robust IPC integration & Python syntax highlighting.
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from "@monaco-editor/react";
 import VisualStrategyBuilder from './VisualStrategyBuilder';
 import {
   Code2, Play, Save, Sparkles, ChevronRight, Loader2,
-  BarChart2, AlertCircle, CheckCircle, Zap,
+  BarChart2, AlertCircle, CheckCircle,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line,
 } from 'recharts';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
-import { BacktestParams, BacktestResult } from '../types';
+import { BacktestParams, BacktestResult, BacktestMetrics } from '../types';
 import { motion } from 'motion/react';
 
 const DEFAULT_SCRIPT = `import liquid_engine as le
@@ -52,6 +51,19 @@ const INITIAL_SUGGESTIONS: AISuggestion[] = [
 type BtStatus = 'idle' | 'running' | 'done' | 'error';
 
 // ─────────────────────────────────────────────────────────────────────────────
+interface BacktestTrade {
+  entryDate?: string;
+  entry?: string;
+  exitDate?: string;
+  exit?: string;
+  dir?: string;
+  side?: string;
+  entryPrice?: number;
+  exitPrice?: number;
+  pnl?: number;
+  pnlPct?: number;
+}
+
 export default function StrategyLab() {
   const [tab,         setTab]         = useState<'visual'|'script'>('script');
   const [btTab,       setBtTab]       = useState<'chart'|'log'>('chart');
@@ -77,7 +89,6 @@ export default function StrategyLab() {
   const [autoTrade, setAutoTrade] = useState(false);
   const [maxDailyLoss, setMaxDailyLoss] = useState(10000);
   
-  const textRef = useRef<HTMLTextAreaElement>(null);
   const appliedCount = suggestions.filter(s => s.applied).length;
 
   // 載入自動化設定
@@ -144,18 +155,6 @@ export default function StrategyLab() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const el = e.currentTarget;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const next = script.substring(0, start) + '    ' + script.substring(end);
-      setScript(next);
-      setTimeout(() => { el.selectionStart = el.selectionEnd = start + 4; }, 0);
-    }
-  };
-
   // Build display curve from real data
   type CurvePoint = { date?: string; portfolio?: number; benchmark?: number };
   const curve = btResult ? (btResult.equityCurve as unknown as CurvePoint[])
@@ -166,9 +165,9 @@ export default function StrategyLab() {
       benchmark: +(100 + (p.benchmark ?? 0)).toFixed(2),
     })) : [];
 
-  const metrics = btResult?.metrics ?? {};
+  const metrics = btResult?.metrics ?? ({} as Partial<BacktestMetrics>);
   const benchEnd = curve.at(-1)?.benchmark ?? 100;
-  const superiorRate = btResult ? (metrics.roi - (benchEnd - 100)).toFixed(2) : null;
+  const superiorRate = btResult && metrics.roi !== undefined ? (metrics.roi - (benchEnd - 100)).toFixed(2) : null;
 
   return (
     <motion.div 
@@ -345,7 +344,7 @@ export default function StrategyLab() {
         </div>
         <button onClick={handleApplyAll}
           className="mt-6 w-full py-3 rounded-2xl bg-emerald-500/10 text-emerald-300 text-xs font-black uppercase tracking-widest border border-emerald-500/20 hover:bg-emerald-500/20 transition-all shrink-0 flex items-center justify-center gap-2">
-          <Zap size={14}/>套用全部 {appliedCount > 0 && `(${appliedCount}/${suggestions.length})`}
+          套用全部 {appliedCount > 0 && `(${appliedCount}/${suggestions.length})`}
         </button>
       </div>
 
@@ -381,9 +380,9 @@ export default function StrategyLab() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
                 {[
                   { label: '超越基準', value: `${Number(superiorRate) > 0 ? '+' : ''}${superiorRate}%`, up: Number(superiorRate) > 0 },
-                  { label: '夏普比率', value: String(metrics.sharpe), up: metrics.sharpe > 1 },
-                  { label: '最大回撤', value: `-${metrics.maxDrawdown}%`, up: false },
-                  { label: '勝率',     value: `${metrics.winRate}%`, up: metrics.winRate >= 50 },
+                  { label: '夏普比率', value: String(metrics.sharpe ?? '-'), up: (metrics.sharpe ?? 0) > 1 },
+                  { label: '最大回撤', value: `-${metrics.maxDrawdown ?? '-'}%`, up: false },
+                  { label: '勝率',     value: `${metrics.winRate ?? '-'}%`, up: (metrics.winRate ?? 0) >= 50 },
                 ].map(c => (
                   <div key={c.label} className="bg-[var(--card-bg)] rounded-xl border border-[var(--border-color)] px-4 py-3 text-center">
                     <div className="label-meta text-zinc-500 mb-1">{c.label}</div>
@@ -405,7 +404,7 @@ export default function StrategyLab() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)"/>
                     <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 8 }} tickLine={false}/>
                     <YAxis tick={{ fill: '#64748b', fontSize: 8 }} tickLine={false} tickFormatter={v => `${v}%`} domain={['auto', 'auto']}/>
-                    <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v: any, n: any) => [`${Number(v).toFixed(1)}%`, n === 'strategy' ? stratName : 'Benchmark']}/>
+                    <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={((v: number, n: string) => [`${Number(v).toFixed(1)}%`, n === 'strategy' ? stratName : 'Benchmark']) as any}/>
                     <Area type="monotone" dataKey="benchmark" stroke="#475569" strokeWidth={1.5} fill="none" dot={false}/>
                     <Area type="monotone" dataKey="strategy"  stroke="#34d399" strokeWidth={2.5} fill="url(#slg)" dot={false}/>
                   </AreaChart>
@@ -426,7 +425,7 @@ export default function StrategyLab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(btResult.trades && btResult.trades.length > 0) ? btResult.trades.map((t: any, i: number) => (
+                  {(btResult.trades && btResult.trades.length > 0) ? btResult.trades.map((t: BacktestTrade, i: number) => (
                     <tr key={i} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-color)]">
                       <td className="py-2 px-2 font-mono">{t.entryDate ?? t.entry ?? '-'}</td>
                       <td className="py-2 px-2 font-mono">{t.exitDate ?? t.exit ?? '-'}</td>
@@ -450,7 +449,7 @@ export default function StrategyLab() {
           )
         ) : (
           <div className="flex items-center justify-center py-6 gap-3">
-            {backtesting ? (
+            {btStatus === 'running' ? (
               <><Loader2 className="animate-spin text-emerald-400" size={16}/><span className="text-zinc-500 text-sm">正在執行回測…</span></>
             ) : (
               <><Play size={16} className="text-zinc-500"/><span className="text-zinc-500 text-sm">點擊「執行回測」查看真實歷史績效（非模擬數據）</span></>

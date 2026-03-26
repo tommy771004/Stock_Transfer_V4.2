@@ -67,6 +67,7 @@ export interface WatchlistItem {
   symbol: string;
   addedAt?: number;
   price?: number;
+  change?: number;
   changePct?: number;
   name?: string;
   shortName?: string;

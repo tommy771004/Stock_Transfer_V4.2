@@ -282,7 +282,7 @@ export default function ChartWidget({ data: history }: Props) {
     // Initial legend update
     setTimeout(() => setLeg(last), 0);
 
-    const updateLegendFromTime = (time: any) => {
+    const updateLegendFromTime = (time: Time) => {
       const idx = timeToIndex.get(time);
       if (idx !== undefined) {
         setLeg(rows[idx]);
@@ -292,7 +292,7 @@ export default function ChartWidget({ data: history }: Props) {
     const syncCrosshair = (p: MouseEventParams, sourceChart: IChartApi) => {
       if (p.time !== undefined) {
         updateLegendFromTime(p.time);
-        const idx = timeToIndex.get(p.time as any);
+        const idx = timeToIndex.get(p.time);
         
         // Sync to main chart
         if (sourceChart !== chartRef.current && chartRef.current && candles) {

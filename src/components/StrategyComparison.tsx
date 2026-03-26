@@ -1,6 +1,5 @@
 import React from 'react';
-import { BarChart2, Zap } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { BarChart2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function StrategyComparison() {

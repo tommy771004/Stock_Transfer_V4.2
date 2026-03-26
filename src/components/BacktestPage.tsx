@@ -9,18 +9,18 @@
  */
 import React, { useState, useRef } from 'react';
 import {
-  AreaChart, Area, LineChart, Line,
+  AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import {
   Play, Download, Trophy, Loader2, AlertCircle,
-  TrendingUp, TrendingDown, Info, ChevronDown, ChevronUp,
+  TrendingUp, TrendingDown, Info, ChevronDown,
   Settings, Activity, ArrowDownRight, Target, FileText,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { runBacktest } from '../services/api';
-import { BacktestResult, BacktestTrade, BacktestMetrics } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { BacktestResult, BacktestMetrics } from '../types';
+import { motion } from 'motion/react';
 import { buildBacktestPdf } from '../utils/exportPdf';
 
 // ── 策略定義 ──────────────────────────────────────────────────────────────────
@@ -127,7 +127,6 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
   const [result,       setResult]       = useState<BacktestResult & { strategy: string } | null>(null);
   const [error,        setError]        = useState('');
   const [tradeSort,    setTradeSort]    = useState<'date'|'pnl'>('date');
-  const [showExplain,  setShowExplain]  = useState(true);
   const [showDd,       setShowDd]       = useState(true);
   // ← KEY FIX: unique key forces chart remount on each new result
   const chartKeyRef = useRef(0);

@@ -141,7 +141,9 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
     <table>
       <thead><tr><th>日期</th><th>代號</th><th>方向</th><th>進場</th><th>出場</th><th>數量</th><th>損益</th></tr></thead>
       <tbody>
-        ${trades.slice(0, 50).map((t) => `
+        ${trades.slice(0, 50).map((trade) => {
+          const t = trade as any;
+          return `
           <tr>
             <td>${escapeHtml(String(t.date ?? t.time ?? '').slice(0,10))}</td>
             <td><strong>${escapeHtml(t.symbol ?? t.ticker ?? '')}</strong></td>
@@ -150,7 +152,8 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
             <td>${(t.exit ?? 0).toFixed(2)}</td>
             <td>${(t.qty ?? t.amount ?? 0).toLocaleString()}</td>
             <td class="${(t.pnl ?? 0) >= 0 ? 'pos' : 'neg'}">${(t.pnl ?? 0) >= 0 ? '+' : ''}$${((t.pnl ?? 0)).toLocaleString('en', { maximumFractionDigits: 0 })}</td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>`;
 
@@ -166,7 +169,9 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
 }
 
 // ── Backtest PDF builder ───────────────────────────────────────────────────────
-export function buildBacktestPdf(symbol: string, strategy: string, metrics: BacktestMetrics, trades: BacktestTrade[]) {
+
+export function buildBacktestPdf(symbol: string, strategy: string, metrics: Partial<BacktestMetrics>, trades: BacktestTrade[]) {
+
   const metricsHtml = `
     <div class="metric-grid">
       <div class="metric">
@@ -196,12 +201,13 @@ export function buildBacktestPdf(symbol: string, strategy: string, metrics: Back
     <table>
       <thead><tr><th>日期</th><th>方向</th><th>價格</th><th>數量</th><th>損益</th></tr></thead>
       <tbody>
-        ${(trades ?? []).slice(0, 50).map(t => `
+
+        ${(trades ?? []).slice(0, 50).map((t: BacktestTrade) => `
           <tr>
-            <td>${escapeHtml(String(t.time ?? '').slice(0, 10))}</td>
-            <td><span class="badge ${t.type === 'LONG' ? 'badge-green' : 'badge-red'}">${escapeHtml(t.type ?? '')}</span></td>
+            <td>${escapeHtml(String(t.date ?? '').slice(0, 10))}</td>
+            <td><span class="badge ${t.type === 'BUY' ? 'badge-green' : 'badge-red'}">${escapeHtml(t.type ?? '')}</span></td>
             <td>${(t.price ?? 0).toFixed(2)}</td>
-            <td>${(t.amount ?? 0).toLocaleString()}</td>
+            <td>${(t.shares ?? 0).toLocaleString()}</td>
             <td class="${(t.pnl ?? 0) >= 0 ? 'pos' : 'neg'}">${(t.pnl ?? 0) >= 0 ? '+' : ''}$${((t.pnl ?? 0)).toLocaleString('en', { maximumFractionDigits: 0 })}</td>
           </tr>`).join('')}
       </tbody>

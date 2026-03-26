@@ -7,19 +7,19 @@
  * 3. 全部串接 Electron IPC API 取得真實數據
  */
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Activity, DollarSign, Globe2, 
-  Loader2, Newspaper, Flame, ChevronRight, ExternalLink,
-  Plus, RefreshCw, X, Search, Zap
+  Loader2, Newspaper, Flame, ExternalLink,
+  Plus, X, Search, Zap
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from './PullToRefreshIndicator';
-import { Quote, NewsItem } from '../types';
+import { Quote, NewsItem, WatchlistItem } from '../types';
 
 interface Props {
   onSelectSymbol: (symbol: string) => void;
@@ -100,8 +100,8 @@ const IndexCard = memo(({ idx, compact, onSelect }: { idx: MarketIndex; compact:
 });
 IndexCard.displayName = 'IndexCard';
 
-const WatchlistStockCard = memo(({ s, isSelected, compact, onSelect, onRemove }: {
-  s: Stock; isSelected: boolean; compact: boolean;
+const WatchlistStockCard = memo(({ s, isSelected, onSelect, onRemove }: {
+  s: Stock; isSelected: boolean;
   onSelect: (s: Stock) => void; onRemove: (sym: string) => void;
 }) => {
   const isUp = s.changePct >= 0;
@@ -194,19 +194,19 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
   };
 
   // ── 資料抓取邏輯 ──
-  const enrich = (d: any, bars: number[] = []): Stock => ({
+  const enrich = (d: WatchlistItem, bars: number[] = []): Stock => ({
     symbol:    d.symbol,
-    name:      d.shortName ?? d.longName ?? d.name ?? d.symbol,
-    shortName: d.shortName ?? d.longName ?? d.name ?? d.symbol,
-    price:     d.regularMarketPrice ?? d.price ?? 0,
-    change:    d.regularMarketChange ?? d.change ?? 0,
-    changePct: d.regularMarketChangePercent ?? d.changePercent ?? 0,
+    name:      d.name ?? d.symbol,
+    shortName: d.name ?? d.symbol,
+    price:     d.price ?? 0,
+    change:    d.change ?? 0,
+    changePct: d.changePct ?? 0,
     volume:    0,
     open:      0,
     high:      0,
     low:       0,
-    bid:       d.regularMarketPrice ?? d.price ?? 0,
-    ask:       d.regularMarketPrice ?? d.price ?? 0,
+    bid:       d.price ?? 0,
+    ask:       d.price ?? 0,
     bars,
   });
 
@@ -229,7 +229,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
     if (!quiet) setLoading(true); else setBusy(true);
     try {
       const wlData = await api.getWatchlist().catch(() => []);
-      const enrichedStocks = (Array.isArray(wlData) ? wlData : []).map((w: any) => enrich(w));
+      const enrichedStocks = (Array.isArray(wlData) ? wlData : []).map((w: WatchlistItem) => enrich(w));
       
       setStocks(enrichedStocks);
       setSelected(prev => enrichedStocks.find(e => e.symbol === prev?.symbol) ?? enrichedStocks[0] ?? null);
@@ -412,7 +412,6 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
                 key={s.symbol}
                 s={s}
                 isSelected={selected?.symbol === s.symbol}
-                compact={compact}
                 onSelect={(stock) => { setSelected(stock); onSelectSymbol?.(stock.symbol); }}
                 onRemove={handleRemove}
               />

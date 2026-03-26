@@ -1,6 +1,5 @@
 import React from 'react';
 import { Loader2, ArrowRight, Zap } from 'lucide-react';
-import { Alerts } from './Alerts';
 import { safeCn, safeN } from '../utils/helpers';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';

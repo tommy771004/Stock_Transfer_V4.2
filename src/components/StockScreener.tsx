@@ -8,10 +8,7 @@
  * - Click to navigate to TradingCore for deep analysis
  */
 import React, { useState, useCallback, useRef } from 'react';
-import {
-  Search, Filter, Loader2, TrendingUp, TrendingDown, Zap,
-  BarChart2, ArrowUpDown, ChevronDown, X, Plus, RefreshCw, Target,
-} from 'lucide-react';
+import { Filter, Loader2, ArrowUpDown, ChevronDown, X, RefreshCw, Target } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import * as api from '../services/api';

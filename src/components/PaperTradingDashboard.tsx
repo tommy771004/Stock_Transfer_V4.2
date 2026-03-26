@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Activity, RefreshCw, Loader2, TrendingUp, TrendingDown, BarChart2 } from 'lucide-react';
+import { Activity, RefreshCw, BarChart2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion } from 'motion/react';
 import * as api from '../services/api';
 import { Position, Quote } from '../types';
+import Decimal from 'decimal.js';
 
 interface Holding {
   symbol: string;
@@ -17,12 +17,14 @@ interface Holding {
 export default function PaperTradingDashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [totalAssets, setTotalAssets] = useState(0);
   const [todayPnl, setTodayPnl] = useState(0);
 
   const fetchPositions = useCallback(async () => {
     try {
-      const posData = await api.getPositions().catch(() => ({ positions: [], usdtwd: 32.5 }));
+      setError(null);
+      const posData = await api.getPositions();
       const positions = Array.isArray(posData.positions) ? posData.positions : [];
       if (positions.length === 0) {
         setHoldings([]);
@@ -31,8 +33,8 @@ export default function PaperTradingDashboard() {
       }
 
       // Fetch live quotes for all held symbols
-      const symbols = positions.map((p: any) => p.symbol);
-      const quotes = await api.getBatchQuotes(symbols).catch(() => []);
+      const symbols = positions.map((p: Position) => p.symbol);
+      const quotes = await api.getBatchQuotes(symbols);
       const quoteMap = new Map<string, Quote>();
       if (Array.isArray(quotes)) {
         quotes.forEach((q: Quote) => { if (q?.symbol) quoteMap.set(q.symbol, q); });
@@ -42,7 +44,7 @@ export default function PaperTradingDashboard() {
         const q = quoteMap.get(p.symbol);
         const currentPrice = q?.regularMarketPrice ?? p.avgCost;
         const pnl = isFinite(currentPrice) && isFinite(p.avgCost) && isFinite(p.shares)
-          ? (currentPrice - p.avgCost) * p.shares : 0;
+          ? new Decimal(currentPrice).minus(p.avgCost).times(p.shares).toNumber() : 0;
         return {
           symbol: p.symbol,
           qty: p.shares,
@@ -54,10 +56,11 @@ export default function PaperTradingDashboard() {
       });
 
       setHoldings(newHoldings);
-      setTotalAssets(newHoldings.reduce((s, h) => s + h.currentPrice * h.qty, 0));
-      setTodayPnl(newHoldings.reduce((s, h) => s + h.pnl, 0));
+      setTotalAssets(newHoldings.reduce((s, h) => new Decimal(s).plus(new Decimal(h.currentPrice).times(h.qty)).toNumber(), 0));
+      setTodayPnl(newHoldings.reduce((s, h) => new Decimal(s).plus(h.pnl).toNumber(), 0));
     } catch(e) {
       console.warn('[PaperTrading] refreshPrices:', e);
+      setError(e instanceof Error ? e.message : '連線異常');
     } finally {
       setLoading(false);
     }
@@ -75,6 +78,27 @@ export default function PaperTradingDashboard() {
 
   const winCount = holdings.filter(h => h.pnl > 0).length;
   const winRate = holdings.length > 0 ? Math.round((winCount / holdings.length) * 100) : 0;
+
+  if (error) {
+    return (
+      <div className="liquid-glass rounded-2xl p-6 flex flex-col items-center justify-center gap-4 h-48 text-center">
+        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+          <Activity className="w-6 h-6 text-red-500" />
+        </div>
+        <div>
+          <h3 className="text-zinc-100 font-bold mb-1">連線異常</h3>
+          <p className="text-zinc-400 text-sm max-w-xs mx-auto">{error}</p>
+        </div>
+        <button 
+          onClick={() => fetchPositions()}
+          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg text-sm transition-colors flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          重新整理
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
