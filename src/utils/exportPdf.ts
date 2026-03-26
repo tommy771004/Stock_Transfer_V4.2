@@ -1,3 +1,5 @@
+import { Position, Trade } from '../types';
+
 /**
  * exportPdf.ts — Browser-native PDF export (no external library)
  *
@@ -91,7 +93,7 @@ function escapeHtml(s: string): string {
 }
 
 // ── Portfolio PDF builder ──────────────────────────────────────────────────────
-export function buildPortfolioPdf(positions: any[], trades: any[], summary: {
+export function buildPortfolioPdf(positions: Position[], trades: Trade[], summary: {
   totalValue: number;
   totalPnl: number;
   totalPnlPct: number;
@@ -139,7 +141,7 @@ export function buildPortfolioPdf(positions: any[], trades: any[], summary: {
     <table>
       <thead><tr><th>日期</th><th>代號</th><th>方向</th><th>進場</th><th>出場</th><th>數量</th><th>損益</th></tr></thead>
       <tbody>
-        ${trades.slice(0, 50).map((t: any) => `
+        ${trades.slice(0, 50).map((t) => `
           <tr>
             <td>${escapeHtml(String(t.date ?? t.time ?? '').slice(0,10))}</td>
             <td><strong>${escapeHtml(t.symbol ?? t.ticker ?? '')}</strong></td>

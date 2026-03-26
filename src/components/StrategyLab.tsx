@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
-import { BacktestParams } from '../types';
+import { BacktestParams, BacktestResult } from '../types';
 import { motion } from 'motion/react';
 
 const DEFAULT_SCRIPT = `import liquid_engine as le
@@ -55,8 +55,9 @@ export default function StrategyLab() {
   const [btTab,       setBtTab]       = useState<'chart'|'log'>('chart');
   const [script,      setScript]      = useState(DEFAULT_SCRIPT);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>(INITIAL_SUGGESTIONS);
-  const [backtesting, setBacktesting] = useState(false);
-  const [btResult,    setBtResult]    = useState<any>(null);
+  type BtStatus = 'idle' | 'running' | 'done' | 'error';
+  const [btStatus,    setBtStatus]    = useState<BtStatus>('idle');
+  const [btResult,    setBtResult]    = useState<BacktestResult | null>(null);
   const [btError,     setBtError]     = useState('');
   const [symbol,      setSymbol]      = useState('2330.TW');
   const [strategy,    setStrategy]    = useState('macd');
@@ -92,7 +93,7 @@ export default function StrategyLab() {
         if (typeof n === 'string') setStratName(n);
         if (typeof auto === 'boolean') setAutoTrade(auto);
         if (typeof loss === 'number') setMaxDailyLoss(loss);
-      } catch { /**/ }
+      } catch(e) { console.warn('[StrategyLab] loadSettings:', e); }
     };
     loadSettings();
   }, []);
@@ -112,13 +113,13 @@ export default function StrategyLab() {
         api.setSetting('autoTrade', autoTrade),
         api.setSetting('maxDailyLoss', maxDailyLoss)
       ]);
-    } catch { /**/ }
+    } catch(e) { console.warn('[StrategyLab] handleSave:', e); }
   };
 
   // ← FIX: use real runBacktest API call
   const handleBacktest = async () => {
-    setBacktesting(true); 
-    setBtError(''); 
+    setBtStatus('running');
+    setBtError('');
     setBtResult(null);
     try {
       const payload: BacktestParams = {
@@ -135,10 +136,10 @@ export default function StrategyLab() {
 
       if (!r || !r.equityCurve?.length) throw new Error('回測無結果，請稍後再試');
       setBtResult(r);
-    } catch(e: any) {
-      setBtError(e.message ?? '回測失敗');
-    } finally {
-      setBacktesting(false);
+      setBtStatus('done');
+    } catch(e: unknown) {
+      setBtStatus('error');
+      setBtError(e instanceof Error ? e.message : '回測失敗');
     }
   };
 
@@ -155,12 +156,13 @@ export default function StrategyLab() {
   };
 
   // Build display curve from real data
-  const curve = btResult ? btResult.equityCurve
-    .filter((_: any, i: number) => i % 4 === 0 || i === btResult.equityCurve.length - 1)
-    .map((p: any) => ({
+  type CurvePoint = { date?: string; portfolio?: number; benchmark?: number };
+  const curve = btResult ? (btResult.equityCurve as unknown as CurvePoint[])
+    .filter((_, i) => i % 4 === 0 || i === btResult.equityCurve.length - 1)
+    .map((p) => ({
       month: String(p.date ?? '').slice(5, 10),
-      strategy: +(100 + p.portfolio).toFixed(2),
-      benchmark: +(100 + p.benchmark).toFixed(2)
+      strategy: +(100 + (p.portfolio ?? 0)).toFixed(2),
+      benchmark: +(100 + (p.benchmark ?? 0)).toFixed(2),
     })) : [];
 
   const metrics = btResult?.metrics ?? {};
@@ -190,10 +192,10 @@ export default function StrategyLab() {
               saved ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100')}>
             {saved ? <CheckCircle size={14}/> : <Save size={14}/>}{saved ? '已儲存' : '儲存草稿'}
           </button>
-          <button onClick={handleBacktest} disabled={backtesting}
+          <button onClick={handleBacktest} disabled={btStatus === 'running'}
             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-500 text-zinc-950 text-xs font-black uppercase tracking-widest hover:bg-emerald-400 disabled:opacity-50 transition-all shadow-2xl shadow-emerald-500/20">
-            {backtesting ? <Loader2 size={14} className="animate-spin"/> : <Play size={14} className="fill-current"/>}
-            {backtesting ? '回測中…' : '執行回測'}
+            {btStatus === 'running' ? <Loader2 size={14} className="animate-spin"/> : <Play size={14} className="fill-current"/>}
+            {btStatus === 'running' ? '回測中…' : '執行回測'}
           </button>
         </div>
       </div>
