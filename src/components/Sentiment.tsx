@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { LineChart, Activity, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { analyzeSentiment as getAISentiment } from '../services/aiService';
+import { SentimentData } from '../types';
 
-export default function Sentiment({ model, symbol }: { model: string, symbol: string }) {
+function Sentiment({ model, symbol }: { model: string, symbol: string }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [sentiment, setSentiment] = useState<any>(null);
-  const [marketData, setMarketData] = useState<any>(null);
+  const [sentiment, setSentiment] = useState<SentimentData | null>(null);
+  const [marketData, setMarketData] = useState<unknown>(null);
 
   useEffect(() => {
     const fetchMarketData = async () => {
@@ -133,3 +134,5 @@ export default function Sentiment({ model, symbol }: { model: string, symbol: st
     </div>
   );
 }
+
+export default memo(Sentiment);

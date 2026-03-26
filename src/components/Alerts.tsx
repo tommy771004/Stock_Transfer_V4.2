@@ -23,7 +23,7 @@ export const Alerts: React.FC<AlertsProps> = React.memo(({ symbol }) => {
   useEffect(() => {
     api.getAlerts().then((data) => {
       if (Array.isArray(data)) setAlerts(data);
-    }).catch(() => {});
+    }).catch(e => { console.warn('[Alerts] getAlerts:', e); });
   }, [symbol]);
 
   const addAlert = async () => {

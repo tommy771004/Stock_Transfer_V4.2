@@ -1,4 +1,4 @@
-import { Position, Trade } from '../types';
+import { Position, Trade, BacktestMetrics, BacktestTrade } from '../types';
 
 /**
  * exportPdf.ts — Browser-native PDF export (no external library)
@@ -166,7 +166,7 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
 }
 
 // ── Backtest PDF builder ───────────────────────────────────────────────────────
-export function buildBacktestPdf(symbol: string, strategy: string, metrics: any, trades: any[]) {
+export function buildBacktestPdf(symbol: string, strategy: string, metrics: BacktestMetrics, trades: BacktestTrade[]) {
   const metricsHtml = `
     <div class="metric-grid">
       <div class="metric">
@@ -196,7 +196,7 @@ export function buildBacktestPdf(symbol: string, strategy: string, metrics: any,
     <table>
       <thead><tr><th>日期</th><th>方向</th><th>價格</th><th>數量</th><th>損益</th></tr></thead>
       <tbody>
-        ${(trades ?? []).slice(0, 50).map((t: any) => `
+        ${(trades ?? []).slice(0, 50).map(t => `
           <tr>
             <td>${escapeHtml(String(t.time ?? '').slice(0, 10))}</td>
             <td><span class="badge ${t.type === 'LONG' ? 'badge-green' : 'badge-red'}">${escapeHtml(t.type ?? '')}</span></td>

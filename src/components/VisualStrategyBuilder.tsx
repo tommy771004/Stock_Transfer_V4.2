@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -38,9 +38,11 @@ export default function VisualStrategyBuilder({ onChange }: { onChange: (script:
     return script;
   };
 
+  const generatedScript = useMemo(() => generateScript(conditions), [conditions]);
+
   useEffect(() => {
-    onChange(generateScript(conditions));
-  }, [conditions]);
+    onChange(generatedScript);
+  }, [generatedScript, onChange]);
 
   const updateCondition = (id: string, field: keyof Condition, value: string) => {
     setConditions(conditions.map(c => c.id === id ? { ...c, [field]: value } : c));

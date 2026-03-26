@@ -27,6 +27,7 @@ export const BacktestPanel: React.FC<Props> = ({ history }) => {
       }
       const shortSMA = history.slice(i - shortPeriod, i).reduce((a, b) => a + (Number(b?.close) || 0), 0) / shortPeriod;
       const longSMA = history.slice(i - longPeriod, i).reduce((a, b) => a + (Number(b?.close) || 0), 0) / longPeriod;
+      if (!isFinite(shortSMA) || !isFinite(longSMA)) { signals.push('HOLD'); continue; }
 
       if (position === 0 && shortSMA > longSMA) {
         signals.push('BUY');
