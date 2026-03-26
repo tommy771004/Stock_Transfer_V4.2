@@ -91,6 +91,7 @@ export default function StockScreener({ onSelectSymbol }: Props) {
   };
 
   const handleSort = (key: SortKey) => {
+    setVisibleCount(50);
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
   };
@@ -291,7 +292,7 @@ export default function StockScreener({ onSelectSymbol }: Props) {
       {/* Results Table */}
       {!loading && results.length > 0 && (
         <div className="flex-1 min-h-0 overflow-auto liquid-glass rounded-2xl border border-[var(--border-color)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead className="sticky top-0 z-10 bg-[var(--bg-color)]/90 backdrop-blur-md">
               <tr className="border-b border-[var(--border-color)]">
                 {[
