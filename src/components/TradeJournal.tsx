@@ -6,7 +6,7 @@
  * Fix 3: Larger text, Chinese labels, better empty state
  * New: Monthly PnL summary bar chart
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from './PullToRefreshIndicator';
 import {
@@ -89,7 +89,7 @@ export default function TradeJournal() {
   const [chartView, setChartView] = useState<'bar'|'heatmap'>('bar');
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setStatus('loading');
       setError(null);
@@ -101,8 +101,8 @@ export default function TradeJournal() {
     } finally {
       setStatus('idle');
     }
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
   const pullState = usePullToRefresh(containerRef, { onRefresh: load });
 
   // ── Add new trade ─────────────────────────────────────────────────────────

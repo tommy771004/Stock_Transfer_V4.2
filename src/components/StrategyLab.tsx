@@ -164,7 +164,7 @@ export default function StrategyLab() {
       benchmark: +(100 + (p.benchmark ?? 0)).toFixed(2),
     })) : [];
 
-  const metrics = btResult?.metrics ?? ({} as Partial<BacktestMetrics>);
+  const metrics = btResult?.metrics ?? ({ roi:0, sharpe:0, maxDrawdown:0, winRate:0, totalTrades:0, avgWin:0, avgLoss:0, profitFactor:0 } as Partial<BacktestMetrics>);
   const benchEnd = curve.at(-1)?.benchmark ?? 100;
   const superiorRate = btResult && metrics.roi !== undefined ? (metrics.roi - (benchEnd - 100)).toFixed(2) : null;
 
