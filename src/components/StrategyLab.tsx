@@ -404,7 +404,7 @@ export default function StrategyLab() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)"/>
                     <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 8 }} tickLine={false}/>
                     <YAxis tick={{ fill: '#64748b', fontSize: 8 }} tickLine={false} tickFormatter={v => `${v}%`} domain={['auto', 'auto']}/>
-                    <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={((v: number, n: string) => [`${Number(v).toFixed(1)}%`, n === 'strategy' ? stratName : 'Benchmark']) as any}/>
+                    <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v: number, n: string) => [`${Number(v).toFixed(1)}%`, n === 'strategy' ? stratName : 'Benchmark']}/>
                     <Area type="monotone" dataKey="benchmark" stroke="#475569" strokeWidth={1.5} fill="none" dot={false}/>
                     <Area type="monotone" dataKey="strategy"  stroke="#34d399" strokeWidth={2.5} fill="url(#slg)" dot={false}/>
                   </AreaChart>
