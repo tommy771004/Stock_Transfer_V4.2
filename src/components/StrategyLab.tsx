@@ -403,7 +403,18 @@ export default function StrategyLab() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)"/>
                     <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 8 }} tickLine={false}/>
                     <YAxis tick={{ fill: '#64748b', fontSize: 8 }} tickLine={false} tickFormatter={v => `${v}%`} domain={['auto', 'auto']}/>
-                    <Tooltip contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v: number, n: string) => [`${Number(v).toFixed(1)}%`, n === 'strategy' ? stratName : 'Benchmark']}/>
+                    <Tooltip 
+  contentStyle={{ backgroundColor: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} 
+  formatter={(
+    v: number | string | readonly (number | string)[] | undefined, 
+    n: number | string | undefined
+  ) => {
+    // 一樣先處理 v 可能是陣列的極端情況
+    const val = Array.isArray(v) ? v[0] : v;
+    // n 會是 'strategy' 或 'benchmark' 等字串，我們用它來判斷標籤名稱
+    return [`${Number(val || 0).toFixed(1)}%`, n === 'strategy' ? stratName : 'Benchmark'];
+  }}
+/>
                     <Area type="monotone" dataKey="benchmark" stroke="#475569" strokeWidth={1.5} fill="none" dot={false}/>
                     <Area type="monotone" dataKey="strategy"  stroke="#34d399" strokeWidth={2.5} fill="url(#slg)" dot={false}/>
                   </AreaChart>
@@ -424,7 +435,7 @@ export default function StrategyLab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(btResult.trades && btResult.trades.length > 0) ? btResult.trades.map((t: BacktestTrade, i: number) => (
+                  {(btResult.trades && btResult.trades.length > 0) ? btResult.trades.map((t, i) => (
                     <tr key={i} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-color)]">
                       <td className="py-2 px-2 font-mono">{t.entryDate ?? t.entry ?? '-'}</td>
                       <td className="py-2 px-2 font-mono">{t.exitDate ?? t.exit ?? '-'}</td>

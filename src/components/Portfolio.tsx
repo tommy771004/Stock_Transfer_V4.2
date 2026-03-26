@@ -65,20 +65,32 @@ function normalizeDate(d: string | number | null | undefined): string {
   if (typeof d==='string') return d.slice(0,10);
   try { return new Date(d).toISOString().slice(0,10); } catch { return ''; }
 }
+interface EquityTipProps {
+  active?: boolean;
+  payload?: { dataKey?: string; value?: number }[];
+  label?: string;
+}
+const EquityTip = ({ active, payload, label }: EquityTipProps) => {
+  if (!active || !payload?.length) return null;
+  
+  const portPayload = payload.find((p) => p.dataKey === 'value');
+  const benchPayload = payload.find((p) => p.dataKey === 'benchmark');
+  
+  // 確保 value 有值才進行計算，避免 TypeScript 報錯
+  const alpha = portPayload?.value !== undefined && benchPayload?.value !== undefined 
+    ? (portPayload.value - benchPayload.value) 
+    : null;
 
-const EquityTip=({active,payload,label}: TooltipProps<number, string>)=>{
-  if(!active||!payload?.length) return null;
-  const portPayload=payload.find((p)=>p.dataKey==='value');
-  const benchPayload=payload.find((p)=>p.dataKey==='benchmark');
-  const alpha=portPayload&&benchPayload?(portPayload.value-benchPayload.value):null;
   return (
     <div className="bg-[var(--card-bg)] border border-white/10 rounded-xl p-2.5 text-xs font-mono shadow-xl min-w-[160px]">
       <div className="text-slate-400 mb-1.5">{label}</div>
-      {portPayload&&<div className="text-emerald-400">策略: ${Number(portPayload.value).toLocaleString()}</div>}
-      {benchPayload&&<div className="text-slate-400">基準: ${Number(benchPayload.value).toLocaleString()}</div>}
-      {alpha!==null&&<div className={alpha>=0?'text-emerald-300':'text-rose-400'} style={{marginTop:4}}>
-        Alpha: {alpha>=0?'+':''}{alpha.toLocaleString()}
-      </div>}
+      {portPayload?.value !== undefined && <div className="text-emerald-400">策略: ${Number(portPayload.value).toLocaleString()}</div>}
+      {benchPayload?.value !== undefined && <div className="text-slate-400">基準: ${Number(benchPayload.value).toLocaleString()}</div>}
+      {alpha !== null && (
+        <div className={alpha >= 0 ? 'text-emerald-300' : 'text-rose-400'} style={{ marginTop: 4 }}>
+          Alpha: {alpha >= 0 ? '+' : ''}{alpha.toLocaleString()}
+        </div>
+      )}
     </div>
   );
 };
@@ -96,8 +108,14 @@ const AllocationPieChart = memo(({ alloc, totalMV, compact }: { alloc: { name: s
             <Pie data={alloc} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
               {alloc.map((e,i)=><Cell key={i} fill={e.color}/>)}
             </Pie>
-            <Tooltip contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={(v: number)=>[`NT$${Number(v).toLocaleString(undefined,{maximumFractionDigits:0})}`,'市值']}/>
-          </PieChart>
+            <Tooltip 
+  contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', borderRadius: 8, fontSize: '12px' }} 
+  formatter={(v: number | string | readonly (number | string)[] | undefined) => {
+    // 為了滿足 TS，我們處理 v 可能是陣列的情況
+    const val = Array.isArray(v) ? v[0] : v;
+    return [`NT$${Number(val || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, '市值'];
+  }}/>
+</PieChart>
         </ResponsiveContainer>
       </div>
       <div className="w-24 sm:w-32 md:w-40 space-y-1.5 overflow-y-auto max-h-full custom-scrollbar pr-1">
@@ -123,8 +141,15 @@ const PnLBarChartPanel = memo(({ pnlData, compact }: { pnlData: { name: string; 
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false}/>
           <XAxis type="number" tick={{fill:'var(--text-color)',opacity:0.5,fontSize: compact ? 8 : 9}} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
           <YAxis dataKey="name" type="category" tick={{fill:'var(--text-color)',opacity:0.7,fontSize: compact ? 8 : 9}} tickLine={false} axisLine={false} width={compact ? 50 : 60}/>
-          <Tooltip cursor={{fill:'var(--border-color)'}} contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={(v: number)=>[`$${Number(v).toLocaleString()}`,'損益']}/>
-          <ReferenceLine x={0} stroke="var(--border-color)"/>
+          <Tooltip 
+  cursor={{ fill: 'var(--border-color)' }} 
+  contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', borderRadius: 8, fontSize: '12px' }} 
+  formatter={(v: number | string | readonly (number | string)[] | undefined) => {
+    const val = Array.isArray(v) ? v[0] : v;
+    return [`$${Number(val || 0).toLocaleString()}`, '損益'];
+  }}
+/>
+<ReferenceLine x={0} stroke="var(--border-color)"/>
           <Bar dataKey="pnl">
             {pnlData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />

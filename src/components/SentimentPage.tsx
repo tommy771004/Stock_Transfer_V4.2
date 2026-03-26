@@ -91,7 +91,11 @@ export default function SentimentPage({ model, symbol: initSym }: Props) {
     setLoading(true); setError('');
     try {
       const quotes = await api.getBatchQuotes(MARKET_SYMBOLS);
-      const result  = await analyzeSentiment(Array.isArray(quotes) ? quotes : [], model, settings.systemInstruction);
+      const result  = await analyzeSentiment(
+  Array.isArray(quotes) ? quotes : [], 
+  model, 
+  typeof settings.systemInstruction === 'string' ? settings.systemInstruction : undefined
+);
       if (result) { setSentiment(result); setLastUpdated(new Date().toLocaleTimeString('zh-TW')); }
       else setError('AI 分析失敗 — 請確認 API Key 已設定');
     } catch(e: unknown) { 
@@ -117,8 +121,8 @@ export default function SentimentPage({ model, symbol: initSym }: Props) {
         api.getHistory(sym, {period1: getPastDateStr(365 * 3), interval:'1wk'}).catch(e => { console.warn('[SentimentPage] getHistory 1wk:', sym, e); return []; }),
       ]);
       const [mtfResult, singleResult] = await Promise.all([
-        analyzeMTF(sym, (d1h??[]) as HistoricalData[], (d1d??[]) as HistoricalData[], (d1wk??[]) as HistoricalData[], model, settings.systemInstruction),
-        analyzeStock(sym, {regularMarketPrice:0}, ((d1d??[]) as HistoricalData[]).slice(-30), model, settings.systemInstruction),
+        analyzeMTF(sym, (d1h??[]) as HistoricalData[], (d1d??[]) as HistoricalData[], (d1wk??[]) as HistoricalData[], model, typeof settings.systemInstruction === 'string' ? settings.systemInstruction : undefined),
+        analyzeStock(sym, {regularMarketPrice:0}, ((d1d??[]) as HistoricalData[]).slice(-30), model, typeof settings.systemInstruction === 'string' ? settings.systemInstruction : undefined),
       ]);
       setMtf(mtfResult);
       setSingleAI(singleResult);

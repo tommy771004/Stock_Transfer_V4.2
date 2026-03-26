@@ -22,9 +22,11 @@ function Sentiment({ model, symbol }: { model: string, symbol: string }) {
     fetchMarketData();
   }, [symbol]);
 
-  useEffect(() => {
+useEffect(() => {
     const analyzeSentiment = async () => {
-      if (!marketData) return;
+      // 加上 Array.isArray 檢查，這樣 TS 就會 100% 確定傳進去的一定是陣列
+      if (!marketData || !Array.isArray(marketData) || marketData.length === 0) return;
+      
       setIsAnalyzing(true);
       try {
         const aiResult = await getAISentiment(marketData, model);
