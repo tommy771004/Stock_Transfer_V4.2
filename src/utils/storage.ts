@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
 };
 
 export const saveToStorage = <T>(key: string, data: T): void => {
+
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
@@ -14,7 +15,7 @@ export const saveToStorage = <T>(key: string, data: T): void => {
 export const loadFromStorage = <T>(key: string, defaultValue: T): T => {
   try {
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    return item ? (JSON.parse(item) as T) : defaultValue;
   } catch (e) {
     console.error('Error loading from localStorage', e);
     return defaultValue;

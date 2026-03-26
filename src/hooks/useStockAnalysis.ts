@@ -3,7 +3,7 @@ import * as api from '../services/api';
 import { analyzeStock, analyzeNewsSentiment } from '../services/aiService';
 import { isTW } from '../utils/helpers';
 import { _rsi, _macd, _sma } from '../utils/math';
-import { Quote, HistoricalData, NewsItem, CalendarData, TWSEData, SentimentData, AIAnalysisResult } from '../types';
+import { Quote, HistoricalData, NewsItem, CalendarData, TWSEData, SentimentData, AIAnalysisResult, MTFTrendRecord } from '../types';
 
 interface UseStockAnalysisProps {
   symbol: string;
@@ -22,7 +22,7 @@ export function useStockAnalysis({ symbol, model, systemInstruction = '', active
   const [cal, setCal] = useState<CalendarData>({});
   const [twse, setTwse] = useState<TWSEData | null>(null);
   const [sentiment, setSentiment] = useState<SentimentData | null>(null);
-  const [mtfData, setMtfData] = useState<any | null>(null);
+  const [mtfData, setMtfData] = useState<MTFTrendRecord | null>(null);
   const [mtfStatus, setMtfStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [newsStatus, setNewsStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [dataState, setDataState] = useState<{ status: 'idle' | 'loading' | 'success' | 'error', error?: string }>({ status: 'idle' });
