@@ -178,8 +178,8 @@ export default function TradeJournal() {
 
   const sorted = [...trades].sort((a,b) =>
     sortCol === 'pnl'
-      ? b.pnl - a.pnl
-      : b.date.localeCompare(a.date)
+      ? (b.pnl ?? 0) - (a.pnl ?? 0)
+      : (b.date ?? '').localeCompare(a.date ?? '')
   );
 
   return (

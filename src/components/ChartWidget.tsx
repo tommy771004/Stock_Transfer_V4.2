@@ -18,6 +18,7 @@ type Indicator = 'EMA1' | 'EMA2' | 'BB' | 'Volume';
 type SubPanel  = 'none' | 'RSI' | 'MACD';
 
 const SUB_H = 120;
+const VALID_SUBPANELS: SubPanel[] = ['none', 'RSI', 'MACD'];
 
 export default function ChartWidget({ data: history }: Props) {
   const mainRef  = useRef<HTMLDivElement>(null);
@@ -66,7 +67,6 @@ export default function ChartWidget({ data: history }: Props) {
   const [subPanel, setSubPanel] = useState<SubPanel>(() => {
     try {
       const v = localStorage.getItem('chart_subpanel');
-      const VALID_SUBPANELS: SubPanel[] = ['none', 'RSI', 'MACD'];
       return VALID_SUBPANELS.includes(v as SubPanel) ? (v as SubPanel) : 'RSI';
     }
     catch { return 'RSI'; }
