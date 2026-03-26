@@ -4,6 +4,7 @@ import { safeCn, safeN } from '../utils/helpers';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { NewsItem, Order, SentimentData } from '../types';
+import Decimal from 'decimal.js';
 
 interface RightPanelProps {
   price: number | null;
@@ -40,7 +41,7 @@ export const RightPanel: React.FC<RightPanelProps> = React.memo(({
   const totalValue = portfolio.reduce((acc, order) => {
     const price = Number(order?.price) || 0;
     const qty = Number(order?.qty) || 0;
-    const value = isFinite(price) && isFinite(qty) ? price * qty : 0;
+    const value = isFinite(price) && isFinite(qty) ? new Decimal(price).times(qty).toNumber() : 0;
     return acc + (order?.side === 'sell' ? -value : value);
   }, 0);
   return (

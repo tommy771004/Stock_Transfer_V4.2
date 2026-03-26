@@ -19,6 +19,7 @@ import { useWatchlist, useUpdateWatchlist } from '../hooks/useQueryHooks';
 import { useSettings } from '../contexts/SettingsContext';
 import { useStockAnalysis } from '../hooks/useStockAnalysis';
 import { Order, WatchlistItem, Alert } from '../types';
+import Decimal from 'decimal.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 interface Props {
@@ -160,7 +161,7 @@ export default function TradingCore({ model, symbol, onSymbolChange, onGoBacktes
   }, [chat, chatStatus, symbol, quote, hist, model, settings.systemInstruction]);
 
   const portfolioValue = useMemo(() => portfolio.reduce((acc: number, order: Order) => {
-    const value = (order.price ?? 0) * (order.qty ?? 0);
+    const value = new Decimal(order.price ?? 0).times(order.qty ?? 0).toNumber();
     return acc + (order.side === 'sell' ? -value : value);
   }, 0), [portfolio]);
 

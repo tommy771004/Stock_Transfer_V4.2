@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import Decimal from 'decimal.js';
 import * as api from './api';
 import { Quote, HistoricalData, AIAnalysisResult, MTFResult, SentimentData, TradingStrategy, NewsItem } from '../types';
 
@@ -86,7 +87,8 @@ async function callAI(prompt: string, model: string, jsonMode: boolean = true): 
 // ── Error response factories ──────────────────────────────────────────────────
 const errAnalysis = (price: number, msg: string): AIAnalysisResult => ({
   action: 'NEUTRAL', reasoning: msg,
-  targetPrice: price * 1.05, stopLoss: price * 0.95, trend: 'neutral',
+  targetPrice: new Decimal(price).times(1.05).toNumber(),
+  stopLoss:    new Decimal(price).times(0.95).toNumber(), trend: 'neutral',
 });
 const MTF_NEUTRAL = (msg: string): MTFResult => ({
   indicators: [

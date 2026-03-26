@@ -20,6 +20,7 @@ import { cn } from '../lib/utils';
 import { getTrades, addTrade, updateTrade, deleteTrade } from '../services/api';
 import { motion } from 'motion/react';
 import { Trade } from '../types';
+import Decimal from 'decimal.js';
 
 const BLANK = {
   date: new Date().toISOString().split('T')[0],
@@ -119,7 +120,7 @@ export default function TradeJournal() {
     try {
       const actionStr = form.action || '';
       const isBuy = actionStr.includes('Buy') || actionStr.includes('做多');
-      const pnl = (exitNum - entryNum) * qtyNum * (isBuy ? 1 : -1);
+      const pnl = new Decimal(exitNum).minus(entryNum).times(qtyNum).times(isBuy ? 1 : -1).toNumber();
       const t = await addTrade({
         date: form.date, ticker: form.ticker.toUpperCase(), action: form.action,
         entry: entryNum, exit: exitNum, qty: qtyNum,

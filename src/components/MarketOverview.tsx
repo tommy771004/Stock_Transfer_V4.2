@@ -7,6 +7,7 @@
  * 3. 全部串接 Electron IPC API 取得真實數據
  */
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
+import Decimal from 'decimal.js';
 import { motion } from 'motion/react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import {
@@ -662,7 +663,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
                 
                 <div className="flex justify-between text-sm md:text-xs pt-2 border-t border-zinc-800">
                   <span className="text-zinc-400">預估金額</span>
-                  <span className="text-zinc-100 font-mono text-lg md:text-base">${(selected.price*oQty).toLocaleString(undefined,{maximumFractionDigits:0})}</span>
+                  <span className="text-zinc-100 font-mono text-lg md:text-base">${new Decimal(selected.price).times(oQty).toNumber().toLocaleString(undefined,{maximumFractionDigits:0})}</span>
                 </div>
                 
                 <button onClick={executeTrade} className={cn('w-full py-4 md:py-2.5 rounded-xl text-base md:text-sm font-bold mt-2', oSide==='buy'?'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]':'bg-rose-500 text-zinc-100 hover:bg-rose-400 shadow-[0_0_15px_rgba(251,113,133,0.3)]')}>
