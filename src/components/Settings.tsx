@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
   autoRefreshInterval: '30',
   fontSize:            'normal',
 };
-type S = typeof DEFAULT_SETTINGS & Record<string, any>;
+type S = typeof DEFAULT_SETTINGS & Record<string, unknown>;
 
 const SECTIONS = [
   { id:'api',     icon:Key,      label:'API 金鑰',   desc:'設定 AI 服務連接' },
