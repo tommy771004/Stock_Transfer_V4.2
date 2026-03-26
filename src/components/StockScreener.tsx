@@ -61,6 +61,7 @@ export default function StockScreener({ onSelectSymbol }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('changePct');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [scannedCount, setScannedCount] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(50);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const runScan = useCallback(async (filters?: ScreenerFilters) => {
@@ -317,10 +318,13 @@ export default function StockScreener({ onSelectSymbol }: Props) {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((r, i) => (
+              {sorted.slice(0, visibleCount).map((r, i) => (
                 <tr
                   key={r.symbol}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectSymbol?.(r.symbol)}
+                  onKeyDown={e => e.key === 'Enter' && onSelectSymbol?.(r.symbol)}
                   className={cn(
                     "border-b border-[var(--border-color)] cursor-pointer transition-colors hover:bg-[var(--bg-color)] active:bg-[var(--border-color)]",
                     i % 2 === 0 ? '' : 'bg-[var(--card-bg)]'
@@ -361,6 +365,16 @@ export default function StockScreener({ onSelectSymbol }: Props) {
               ))}
             </tbody>
           </table>
+          {sorted.length > visibleCount && (
+            <div className="flex justify-center mt-3">
+              <button
+                onClick={() => setVisibleCount(v => v + 50)}
+                className="px-4 py-2 text-xs rounded-lg bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                載入更多 ({visibleCount}/{sorted.length})
+              </button>
+            </div>
+          )}
         </div>
       )}
     </motion.div>

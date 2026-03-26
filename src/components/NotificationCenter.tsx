@@ -50,7 +50,9 @@ export const NotificationBell: React.FC<{ onClick?: () => void }> = ({ onClick }
   const count = context?.unreadCount ?? 0;
 
   return (
-    <div 
+    <button
+      type="button"
+      aria-label="通知中心"
       onClick={onClick}
       className="relative p-2 text-gray-400 hover:text-white cursor-pointer"
     >
@@ -60,7 +62,7 @@ export const NotificationBell: React.FC<{ onClick?: () => void }> = ({ onClick }
           {count}
         </span>
       )}
-    </div>
+    </button>
   );
 };
 
@@ -69,7 +71,7 @@ export default function NotificationCenter({ open, onClose }: { open: boolean, o
   if (!context || !open) return null;
 
   return (
-    <div className="fixed top-16 right-4 z-50 p-4 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl w-80 max-h-96 overflow-auto">
+    <div className="fixed top-16 right-2 sm:right-4 z-50 p-4 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl w-[calc(100vw-1rem)] sm:w-80 max-h-96 overflow-auto">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-bold text-white">通知中心</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-white">✕</button>
