@@ -356,11 +356,11 @@ export default function TradeJournal() {
                 ['entry',  '進場價',      'number'],
                 ['exit',   '出場價',      'number'],
                 ['notes',  '備註（選填）',  'text'],
-              ] as [string,string,string][]).map(([k,ph,t]) => (
+              ] as [keyof typeof form, string, string][]).map(([k,ph,t]) => (
                 <div key={k}>
                   <div className="text-xs text-zinc-500 mb-2 font-black uppercase tracking-widest">{ph}</div>
                   <input type={t} placeholder={ph}
-                    value={(form as any)[k]}
+                    value={form[k]}
                     onChange={e => fld(k, e.target.value)}
                     onKeyDown={e => e.key==='Enter' && k==='notes' && handleAdd()}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 text-base focus:outline-none focus:border-emerald-500/50 transition-all"/>

@@ -379,12 +379,12 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
 
         {showAdd&&(
           <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 p-3 rounded-xl bg-[var(--bg-color)] border border-[var(--border-color)] shrink-0">
-            {([['代碼','symbol','text'],['名稱','name','text'],['股數','shares','number'],['均價','avgCost','number'],['幣別','currency','text']] as [string,string,string][]).map(([ph,k,t])=>(
+            {([['代碼','symbol','text'],['名稱','name','text'],['股數','shares','number'],['均價','avgCost','number'],['幣別','currency','text']] as [string, keyof typeof newPos, string][]).map(([ph,k,t])=>(
               <div key={k}>
                 <div className="text-sm text-[var(--text-color)] opacity-50 mb-1">{ph}</div>
                 <input type={t} placeholder={ph}
                   className="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-[var(--text-color)] text-sm focus:outline-none focus:border-emerald-500/50"
-                  value={(newPos as any)[k]} onChange={e=>setNewPos(p=>({...p,[k]:e.target.value}))}/>
+                  value={newPos[k]} onChange={e=>setNewPos(p=>({...p,[k]:e.target.value}))}/>
               </div>
             ))}
             <div className="flex flex-col gap-1">

@@ -38,9 +38,9 @@ export default function LiveTradingConsole() {
       if (data.status !== 'success') throw new Error(data.message || '交易失敗');
       setStatus('success');
       setTimeout(() => setStatus('idle'), 5000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStatus('error');
-      setErrorMsg(e.message);
+      setErrorMsg(e instanceof Error ? e.message : '下單失敗');
     }
   };
 

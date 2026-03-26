@@ -152,7 +152,7 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
         try {
           const r = await runBacktest({symbol:sym, period1, period2:period2||undefined, initialCapital:cap, strategy:s.id});
           if (r?.metrics) results[s.id] = {...r, strategy:s.id};
-        } catch { /**/ }
+        } catch(e) { console.warn('[BacktestPage] runBacktest strategy:', s.id, e); }
       }));
     }
     

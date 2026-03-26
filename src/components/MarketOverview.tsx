@@ -217,7 +217,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
       return hist.slice(-days)
         .filter((r: { close: number }) => r?.close && isFinite(Number(r.close)))
         .map((r: { close: number }) => Number(r.close));
-    } catch { return []; }
+    } catch(e) { console.warn('[MarketOverview] getHistory:', e); return []; }
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
