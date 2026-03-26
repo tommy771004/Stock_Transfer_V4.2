@@ -58,7 +58,11 @@ interface MarketIndex {
 const IndexCard = memo(({ idx, compact, onSelect }: { idx: MarketIndex; compact: boolean; onSelect: (sym: string) => void }) => {
   const isUp = idx.changePct >= 0;
   return (
-    <div onClick={() => onSelect(idx.symbol)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(idx.symbol)}
+      onKeyDown={e => e.key === 'Enter' && onSelect(idx.symbol)}
       className={cn(
         "min-w-[200px] md:min-w-0 liquid-glass-strong rounded-2xl cursor-pointer hover:border-emerald-500/30 hover:bg-[var(--card-bg)] transition-all group shadow-lg border-[var(--border-color)] snap-center active:scale-[0.98]",
         compact ? "p-3" : "p-4 md:p-6 lg:p-8",
@@ -106,7 +110,11 @@ const WatchlistStockCard = memo(({ s, isSelected, onSelect, onRemove }: {
 }) => {
   const isUp = s.changePct >= 0;
   return (
-    <div onClick={() => onSelect(s)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(s)}
+      onKeyDown={e => e.key === 'Enter' && onSelect(s)}
       className={cn('relative bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl p-4 cursor-pointer transition-all hover:bg-[var(--bg-color)] group',
         isSelected ? 'border-emerald-500/40 bg-emerald-500/5' : '')}>
       <button onClick={e => { e.stopPropagation(); onRemove(s.symbol); }}
@@ -434,7 +442,11 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
             ))}
 
             {/* 新增自選股 Card */}
-            <div onClick={() => !showAdd && setShowAdd(true)}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => !showAdd && setShowAdd(true)}
+              onKeyDown={e => e.key === 'Enter' && !showAdd && setShowAdd(true)}
               className="liquid-glass rounded-2xl border-dashed border-zinc-800 p-4 cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all flex flex-col items-center justify-center min-h-[160px] bg-zinc-900/50">
               {showAdd ? (
                 <div className="w-full space-y-3" onClick={e => e.stopPropagation()}>
@@ -517,7 +529,11 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
             {trending.length > 0 ? trending.map((t: Stock) => {
               const isUp = (t.changePct || 0) >= 0;
               return (
-                <div key={t.symbol} onClick={() => onSelectSymbol(t.symbol)}
+                <div key={t.symbol}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectSymbol(t.symbol)}
+                  onKeyDown={e => e.key === 'Enter' && onSelectSymbol(t.symbol)}
                   className="min-w-[200px] lg:min-w-0 flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 cursor-pointer group transition-colors">
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-100">
