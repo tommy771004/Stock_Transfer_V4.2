@@ -73,9 +73,11 @@ const MonthTip = ({ active, payload, label }: MonthTipProps) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function TradeJournal() {
   const [trades,   setTrades]   = useState<Trade[]>([]);
-  const [loading,  setLoading]  = useState(true);
+  type JournalStatus = 'idle' | 'loading' | 'saving';
+  const [status,   setStatus]   = useState<JournalStatus>('loading');
+  const loading = status === 'loading';
+  const saving  = status === 'saving';
   const [error,    setError]    = useState<string | null>(null);
-  const [saving,   setSaving]   = useState(false);
   const [adding,   setAdding]   = useState(false);
   const [editId,   setEditId]   = useState<number|null>(null);
   const [form,     setForm]     = useState({ ...BLANK });
@@ -88,7 +90,7 @@ export default function TradeJournal() {
 
   const load = async () => {
     try {
-      setLoading(true);
+      setStatus('loading');
       setError(null);
       const d = await getTrades();
       setTrades(Array.isArray(d)?d:[]);
@@ -96,7 +98,7 @@ export default function TradeJournal() {
       console.error(e);
       setError(e instanceof Error ? e.message : '連線異常');
     } finally {
-      setLoading(false);
+      setStatus('idle');
     }
   };
   useEffect(() => { load(); }, []);
@@ -113,7 +115,7 @@ export default function TradeJournal() {
     if (!isFinite(entryNum) || entryNum <= 0 || !isFinite(exitNum) || exitNum <= 0 || !isFinite(qtyNum) || qtyNum <= 0) {
       setErr('進場價、出場價、數量必須為有效正數'); return;
     }
-    setSaving(true); setErr('');
+    setStatus('saving'); setErr('');
     try {
       const actionStr = form.action || '';
       const isBuy = actionStr.includes('Buy') || actionStr.includes('做多');
@@ -126,7 +128,7 @@ export default function TradeJournal() {
       setTrades(p => [t, ...p]);
       setAdding(false); setForm({ ...BLANK });
     } catch(e: unknown) { setErr(e instanceof Error ? e.message : '新增失敗'); }
-    finally { setSaving(false); }
+    finally { setStatus('idle'); }
   };
 
   // ── Save inline edit ──────────────────────────────────────────────────────
@@ -145,7 +147,7 @@ export default function TradeJournal() {
       setTrades(p => p.map(t => t.id === editId ? merged : t));
       setEditId(null); setEditBuf({});
     } catch(e: unknown) { setErr(e instanceof Error ? e.message : '更新失敗'); }
-    finally { setSaving(false); }
+    finally { setStatus('idle'); }
   };
 
   const handleDelete = async (id: number) => {

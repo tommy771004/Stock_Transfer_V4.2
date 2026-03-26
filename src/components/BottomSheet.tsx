@@ -9,7 +9,7 @@
  *     {children}
  *   </BottomSheet>
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -25,7 +25,7 @@ interface Props {
   desktopWidth?: string;
 }
 
-export const BottomSheet: React.FC<Props> = ({
+const BottomSheetInner: React.FC<Props> = ({
   open,
   onClose,
   title,
@@ -132,4 +132,5 @@ export const BottomSheet: React.FC<Props> = ({
   );
 };
 
+export const BottomSheet = memo(BottomSheetInner);
 export default BottomSheet;

@@ -139,7 +139,8 @@ export const setPositions  = (list: Position[]): Promise<boolean> =>
 // ── Trades ────────────────────────────────────────────────────────────────────
 export const getTrades = async (): Promise<Trade[]> => {
   try {
-    const data = IS_ELECTRON ? await E().getTrades() as unknown as TradeDTO[] : await fetchJ<TradeDTO[]>('/api/trades');
+    const raw = IS_ELECTRON ? await E().getTrades() : await fetchJ<TradeDTO[]>('/api/trades');
+    const data = Array.isArray(raw) ? (raw as TradeDTO[]) : [];
     return (Array.isArray(data) ? data : []).map(mapTradeDTO);
   } catch (e) {
     apiWarn('getTrades', e);

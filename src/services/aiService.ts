@@ -13,8 +13,7 @@ const getOpenRouterKey = async (): Promise<string> => {
     if (v && typeof v === 'string' && v.trim()) return v.trim();
   } catch(e) { console.warn('[aiService] getSetting openrouterKey:', e); }
   const s = getSettings();
-  const env = (import.meta as unknown as { env: Record<string, string> }).env;
-  return s.openrouterKey?.trim() || s.openaiKey?.trim() || env.VITE_OPENROUTER_API_KEY || '';
+  return s.openrouterKey?.trim() || s.openaiKey?.trim() || (import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined) || '';
 };
 const getOllamaBase = async (): Promise<string> => {
   try {
