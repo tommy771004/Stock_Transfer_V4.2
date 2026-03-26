@@ -3,6 +3,7 @@ import { Activity, RefreshCw, Loader2, TrendingUp, TrendingDown, BarChart2 } fro
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import * as api from '../services/api';
+import { Position, Quote } from '../types';
 
 interface Holding {
   symbol: string;
@@ -32,15 +33,16 @@ export default function PaperTradingDashboard() {
       // Fetch live quotes for all held symbols
       const symbols = positions.map((p: any) => p.symbol);
       const quotes = await api.getBatchQuotes(symbols).catch(() => []);
-      const quoteMap = new Map<string, any>();
+      const quoteMap = new Map<string, Quote>();
       if (Array.isArray(quotes)) {
-        quotes.forEach((q: any) => { if (q?.symbol) quoteMap.set(q.symbol, q); });
+        quotes.forEach((q: Quote) => { if (q?.symbol) quoteMap.set(q.symbol, q); });
       }
 
-      const newHoldings: Holding[] = positions.map((p: any) => {
+      const newHoldings: Holding[] = positions.map((p: Position) => {
         const q = quoteMap.get(p.symbol);
         const currentPrice = q?.regularMarketPrice ?? p.avgCost;
-        const pnl = (currentPrice - p.avgCost) * p.shares;
+        const pnl = isFinite(currentPrice) && isFinite(p.avgCost) && isFinite(p.shares)
+          ? (currentPrice - p.avgCost) * p.shares : 0;
         return {
           symbol: p.symbol,
           qty: p.shares,
@@ -54,8 +56,8 @@ export default function PaperTradingDashboard() {
       setHoldings(newHoldings);
       setTotalAssets(newHoldings.reduce((s, h) => s + h.currentPrice * h.qty, 0));
       setTodayPnl(newHoldings.reduce((s, h) => s + h.pnl, 0));
-    } catch {
-      // keep current state
+    } catch(e) {
+      console.warn('[PaperTrading] refreshPrices:', e);
     } finally {
       setLoading(false);
     }

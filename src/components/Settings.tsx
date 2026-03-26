@@ -72,7 +72,7 @@ export default function Settings() {
   const [saving,        setSaving]        = useState(false);
   const [active,        setActive]        = useState('api');
   const [showKey,       setShowKey]       = useState<Record<string,boolean>>({});
-  const [dbStats,       setDbStats]       = useState<any>(null);
+  const [dbStats,       setDbStats]       = useState<unknown>(null);
   const [saveErr,       setSaveErr]       = useState('');
   const [clearConfirm, setClearConfirm] = useState(false);
   const [loaded,        setLoaded]        = useState(false);
@@ -90,17 +90,18 @@ export default function Settings() {
         const loaded: Partial<S> = {};
         pairs.forEach(([k, v]) => { if (v !== null && v !== undefined) loaded[k] = v; });
         setSettings(prev => ({ ...prev, ...loaded }));
-      } catch {
+      } catch(e) {
         // Fallback to localStorage for backwards compat
+        console.warn('[Settings] loadFromIPC:', e);
         try {
           const raw = localStorage.getItem('llm_trader_settings');
           if (raw) setSettings(prev => ({ ...prev, ...JSON.parse(raw) }));
-        } catch { /**/ }
+        } catch(le) { console.warn('[Settings] loadFromLocalStorage:', le); }
       } finally { setLoaded(true); }
     })();
 
     // Load db stats
-    getDbStats().then(setDbStats).catch(() => {});
+    getDbStats().then(setDbStats).catch(e => console.warn('[Settings] getDbStats:', e));
   }, []);
 
   const set = (key: string, val: any) => {
@@ -120,8 +121,8 @@ export default function Settings() {
       localStorage.setItem('llm_trader_settings', JSON.stringify(settings));
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch(e:any) {
-      setSaveErr(e.message ?? '儲存失敗');
+    } catch(e: unknown) {
+      setSaveErr(e instanceof Error ? e.message : '儲存失敗');
     } finally {
       setSaving(false);
     }

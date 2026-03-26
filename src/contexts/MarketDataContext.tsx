@@ -50,7 +50,8 @@ export const MarketDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         await fetch('/api/health');
         setLatency(Date.now() - start);
-      } catch {
+      } catch(e) {
+        console.warn('[MarketData] latency check:', e);
         setLatency(0);
       }
     };

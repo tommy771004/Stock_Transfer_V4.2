@@ -4,7 +4,7 @@
  * Fix: watchlist items now call onSymbolChange(symbol) to switch the viewed stock.
  * All indicator math inlined. ChartWidget lazy-loaded.
  */
-import { useState, useEffect, useCallback, useRef, lazy } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, useMemo } from 'react';
 import * as api from '../services/api';
 import { STORAGE_KEYS, saveToStorage, loadFromStorage } from '../utils/storage';
 import {
@@ -166,10 +166,10 @@ export default function TradingCore({ model, symbol, onSymbolChange, onGoBacktes
     }
   }, [chat, chatStatus, symbol, quote, hist, model, settings.systemInstruction]);
 
-  const portfolioValue = portfolio.reduce((acc: number, order: Order) => {
+  const portfolioValue = useMemo(() => portfolio.reduce((acc: number, order: Order) => {
     const value = (order.price ?? 0) * (order.qty ?? 0);
     return acc + (order.side === 'sell' ? -value : value);
-  }, 0);
+  }, 0), [portfolio]);
 
   const eDateFmt = cal.earningsDate ? new Date(cal.earningsDate[0]).toLocaleDateString() : null;
   const latestHist = hist[hist.length - 1];
