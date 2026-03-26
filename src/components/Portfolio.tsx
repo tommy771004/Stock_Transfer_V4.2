@@ -27,6 +27,7 @@ import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { buildPortfolioPdf } from '../utils/exportPdf';
 import { Position, Trade } from '../types';
+import Decimal from 'decimal.js';
 
 const COLORS = ['#34d399','#60a5fa','#f472b6','#fbbf24','#a78bfa','#94a3b8','#fb923c','#38bdf8'];
 
@@ -199,7 +200,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
       setInitCap(prev => {
         if(prev===null&&pos.length){
           const totalCost=pos.reduce((s:number,p:Position)=>{
-            const cost=Number(p.avgCost)*Number(p.shares)*(p.currency==='TWD'?1:rate);
+            const cost=new Decimal(p.avgCost).times(p.shares).times(p.currency==='TWD'?1:rate).toNumber();
             return s+(isFinite(cost)?cost:0);
           },0);
           return Math.round(totalCost)||1_000_000;
@@ -238,11 +239,11 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   const safeRate   = usdtwd > 0 ? usdtwd : 32.5; // guard against zero/NaN
   const totalMV   = positions.reduce((s,p)=>s+(p.marketValueTWD??p.marketValue??0),0);
   const totalCost = positions.reduce((s,p)=>{
-    const cost=Number(p.avgCost)*Number(p.shares)*(p.currency==='TWD'?1:safeRate);
+    const cost=new Decimal(p.avgCost).times(p.shares).times(p.currency==='TWD'?1:safeRate).toNumber();
     return s+(isFinite(cost)?cost:0);
   },0);
-  const totalPnL  = totalMV-totalCost;
-  const totalPct  = totalCost>0?(totalPnL/totalCost)*100:0;
+  const totalPnL  = new Decimal(totalMV).minus(totalCost).toNumber();
+  const totalPct  = totalCost>0?new Decimal(totalPnL).div(totalCost).times(100).toNumber():0;
   const today     = new Date().toISOString().slice(0,10);
   const todayPnL  = trades.filter(t=>normalizeDate(t.date)===today).reduce((s,t)=>s+(t.pnl??0),0);
   const wins      = trades.filter(t=>(t.pnl??0)>0);
@@ -368,7 +369,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
           </div>
           {showCapSet&&(
             <div className="flex items-center gap-2 mb-2">
-              <input type="number" value={capInput} onChange={e=>setCapInput(e.target.value)} placeholder="初始資金"
+              <input aria-label="初始資金" type="number" value={capInput} onChange={e=>setCapInput(e.target.value)} placeholder="初始資金"
                 className="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg px-2 py-1 text-[var(--text-color)] text-xs font-mono focus:outline-none focus:border-emerald-500/50"/>
               <button onClick={applyCapital} className="px-2 py-1 bg-emerald-950 text-emerald-400 text-xs rounded-lg border border-emerald-900/50">套用</button>
               <button onClick={()=>setShowCapSet(false)} className="px-2 py-1 bg-[var(--border-color)] text-[var(--text-color)] opacity-60 text-xs rounded-lg border border-[var(--border-color)]">取消</button>
@@ -427,7 +428,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
             {([['代碼','symbol','text'],['名稱','name','text'],['股數','shares','number'],['均價','avgCost','number'],['幣別','currency','text']] as [string, keyof typeof newPos, string][]).map(([ph,k,t])=>(
               <div key={k}>
                 <div className="text-sm text-[var(--text-color)] opacity-50 mb-1">{ph}</div>
-                <input type={t} placeholder={ph}
+                <input aria-label={ph} type={t} placeholder={ph}
                   className="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-[var(--text-color)] text-sm focus:outline-none focus:border-emerald-500/50"
                   value={newPos[k]} onChange={e=>setNewPos(p=>({...p,[k]:e.target.value}))}/>
               </div>
@@ -529,10 +530,10 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
                     </div>
                   </td>
                   <td className="py-3 font-mono text-zinc-300">
-                    {editIdx===idx?<input type="number" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-xs w-16" value={editBuf.shares??p.shares} onChange={e=>setEditBuf(b=>({...b,shares:Number(e.target.value)}))}/>:p.shares.toLocaleString()}
+                    {editIdx===idx?<input aria-label="持股數量" type="number" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-xs w-16" value={editBuf.shares??p.shares} onChange={e=>setEditBuf(b=>({...b,shares:Number(e.target.value)}))}/>:p.shares.toLocaleString()}
                   </td>
                   <td className="py-3 font-mono text-zinc-300">
-                    {editIdx===idx?<input type="number" step="0.01" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-xs w-20" value={editBuf.avgCost??p.avgCost} onChange={e=>setEditBuf(b=>({...b,avgCost:Number(e.target.value)}))}/>:p.avgCost.toFixed(2)}
+                    {editIdx===idx?<input aria-label="平均成本" type="number" step="0.01" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-xs w-20" value={editBuf.avgCost??p.avgCost} onChange={e=>setEditBuf(b=>({...b,avgCost:Number(e.target.value)}))}/>:p.avgCost.toFixed(2)}
                   </td>
                   <td className="py-3 font-mono text-zinc-100">{p.currentPrice!=null?p.currentPrice.toFixed(2):<Loader2 className="w-3 h-3 animate-spin text-zinc-600 inline"/>}</td>
                   <td className="py-3 font-mono text-zinc-100 text-right">${Math.round(p.marketValueTWD??p.marketValue??0).toLocaleString()}</td>

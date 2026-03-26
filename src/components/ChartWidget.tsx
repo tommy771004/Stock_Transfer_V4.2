@@ -64,7 +64,11 @@ export default function ChartWidget({ data: history }: Props) {
     catch { return new Set(['EMA1', 'Volume']); }
   });
   const [subPanel, setSubPanel] = useState<SubPanel>(() => {
-    try { return (localStorage.getItem('chart_subpanel') as SubPanel) || 'RSI'; }
+    try {
+      const v = localStorage.getItem('chart_subpanel');
+      const VALID_SUBPANELS: SubPanel[] = ['none', 'RSI', 'MACD'];
+      return VALID_SUBPANELS.includes(v as SubPanel) ? (v as SubPanel) : 'RSI';
+    }
     catch { return 'RSI'; }
   });
 
