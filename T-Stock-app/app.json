@@ -25,7 +25,8 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
-        "UIRequiresFullScreen": false
+        "UIRequiresFullScreen": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent"
       }
     },
     "android": {
@@ -42,13 +43,15 @@
     },
     "plugins": [
       "expo-router",
+      "expo-system-ui",
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#09090b",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "./plugins/withAndroidCleartext"
     ],
     "experiments": {
       "typedRoutes": true

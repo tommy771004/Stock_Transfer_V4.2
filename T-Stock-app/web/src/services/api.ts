@@ -71,21 +71,24 @@ const IS_MOBILE_WEBVIEW =
 
 /**
  * Base URL for server API calls.
- * In mobile WebView: read from localStorage (user can configure in Settings),
- * or fall back to same-origin (which will fail gracefully if no server).
+ * Evaluated once at module load — reading localStorage per-request is wasteful
+ * and the base URL does not change within a session.
  */
-const mobileApiBase = (): string => {
-  if (!IS_MOBILE_WEBVIEW) return '';
-  try { return localStorage.getItem('mobile_api_base') ?? ''; } catch { return ''; }
-};
+const _mobileApiBase: string = IS_MOBILE_WEBVIEW
+  ? (() => { try { return localStorage.getItem('mobile_api_base') ?? ''; } catch { return ''; } })()
+  : '';
 
-/** Build a full API URL, honouring mobileApiBase when in WebView. */
-const apiUrl = (path: string) => `${mobileApiBase()}${path}`;
+/** Build a full API URL, honouring _mobileApiBase when in WebView. */
+const apiUrl = (path: string) => `${_mobileApiBase}${path}`;
 
 const E = () => {
   if (!window.api) throw new Error('Electron API not available');
   return window.api;
 };
+
+// ── Monotonic ID generator (prevents collision when Date.now() repeats in same ms) ──
+let _idClock = Date.now();
+const nextId = (): number => { _idClock = Math.max(Date.now(), _idClock + 1); return _idClock; };
 
 // ── localStorage keys for mobile CRUD persistence ────────────────────────────
 const LS = {
@@ -228,7 +231,7 @@ export const addTrade = (t: Partial<Trade>): Promise<Trade> => {
   if (IS_ELECTRON) return E().addTrade(t);
   if (IS_MOBILE_WEBVIEW) {
     const trades = loadFromStorage<Trade[]>(LS.trades, []);
-    const next: Trade = { ...t, id: Date.now() } as Trade;
+    const next: Trade = { ...t, id: nextId() } as Trade;
     saveToStorage(LS.trades, [...trades, next]);
     return Promise.resolve(next);
   }
@@ -279,7 +282,7 @@ export const addAlert = (a: Omit<Alert, 'id'>): Promise<Alert> => {
   if (IS_ELECTRON) return E().addAlert(a);
   if (IS_MOBILE_WEBVIEW) {
     const alerts = loadFromStorage<Alert[]>(LS.alerts, []);
-    const next: Alert = { ...a, id: Date.now() } as Alert;
+    const next: Alert = { ...a, id: nextId() } as Alert;
     saveToStorage(LS.alerts, [...alerts, next]);
     return Promise.resolve(next);
   }
@@ -300,11 +303,11 @@ export const deleteAlert = (id: number): Promise<boolean> => {
 };
 
 // ── App Settings ──────────────────────────────────────────────────────────────
-export const getSetting = async <T>(key: string): Promise<T> => {
+export const getSetting = async <T>(key: string): Promise<T | undefined> => {
   if (IS_ELECTRON) return E().getSetting<T>(key);
   if (IS_MOBILE_WEBVIEW) {
     const all = loadFromStorage<Record<string, unknown>>(LS.settings, {});
-    return all[key] as T;
+    return (all[key] ?? undefined) as T | undefined;
   }
   const r = await fetchJ<{ value: T }>(apiUrl(`/api/settings/${key}`));
   return r.value;
