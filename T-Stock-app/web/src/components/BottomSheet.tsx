@@ -1,136 +1,213 @@
-/**
- * BottomSheet.tsx — Mobile-first bottom sheet component
- *
- * On mobile (< md): slides up from the bottom with drag-to-dismiss.
- * On desktop (>= md): renders as a floating card near the trigger.
- *
- * Usage:
- *   <BottomSheet open={open} onClose={() => setOpen(false)} title="下單面板">
- *     {children}
- *   </BottomSheet>
- */
-import React, { useEffect, useRef, memo } from 'react';
-import { motion, AnimatePresence, PanInfo } from 'motion/react';
-import { X } from 'lucide-react';
-import { cn } from '../lib/utils';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  PanResponder,
+  Dimensions,
+  TouchableWithoutFeedback,
+  Modal,
+  BackHandler,
+  ScrollView,
+  StyleProp,
+  ViewStyle
+} from 'react-native';
+import { X } from 'lucide-react-native';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   title?: string;
-  /** Extra class on the sheet panel itself */
-  className?: string;
+  style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
-  /** Desktop: max width of floating card (default 'max-w-sm') */
-  desktopWidth?: string;
 }
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BottomSheetInner: React.FC<Props> = ({
   open,
   onClose,
   title,
-  className,
+  style,
   children,
-  desktopWidth = 'max-w-sm',
 }) => {
-  const sheetRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(open);
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
-
-  // Lock body scroll while open
   useEffect(() => {
     if (open) {
-      document.body.classList.add('scroll-locked');
+      setIsVisible(true);
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
-      document.body.classList.remove('scroll-locked');
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: SCREEN_HEIGHT,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setIsVisible(false);
+      });
     }
-    return () => { document.body.classList.remove('scroll-locked'); };
-  }, [open]);
+  }, [open, translateY, fadeAnim]);
 
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > 80 || info.velocity.y > 400) onClose();
-  };
+  useEffect(() => {
+    if (!open) return;
+    const backAction = () => {
+      onClose();
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [open, onClose]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 80 || gestureState.vy > 0.5) {
+          onClose();
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 0,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  if (!isVisible) return null;
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            key="bs-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm"
-            onClick={onClose}
-            aria-hidden="true"
-          />
+    <Modal transparent visible={isVisible} animationType="none" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
+        </TouchableWithoutFeedback>
 
-          {/* Sheet Panel — bottom sheet on mobile, floating card on desktop */}
-          <motion.div
-            key="bs-panel"
-            ref={sheetRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            drag="y"
-            dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.4 }}
-            onDragEnd={handleDragEnd}
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 380, damping: 40 }}
-            className={cn(
-              // Mobile: full bottom sheet
-              'fixed bottom-0 left-0 right-0 z-[90]',
-              'md:static md:inset-auto',
-              // Desktop: floating card
-              'md:fixed md:bottom-auto md:left-auto md:right-6 md:top-auto',
-              'liquid-glass-strong rounded-t-3xl md:rounded-2xl border border-white/10',
-              'shadow-[0_-10px_60px_rgba(0,0,0,0.6)] md:shadow-2xl',
-              'safe-area-bottom',
-              // Desktop width
-              `md:${desktopWidth}`,
-              className
-            )}
+        <Animated.View
+          style={[
+            styles.sheet,
+            style,
+            { transform: [{ translateY }] }
+          ]}
+        >
+          <View {...panResponder.panHandlers} style={styles.dragArea}>
+            <View style={styles.dragHandle} />
+          </View>
+
+          {title && (
+            <View style={styles.header}>
+              <Text style={styles.title}>{title}</Text>
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeButton}
+                accessibilityLabel="關閉"
+              >
+                <X size={16} color="#a1a1aa" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={false}
           >
-            {/* Drag handle (mobile only) */}
-            <div className="md:hidden flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-[var(--border-color)]" />
-            </div>
-
-            {/* Header */}
-            {title && (
-              <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.08]">
-                <h2 className="text-sm font-bold text-white">{title}</h2>
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-xl hover:bg-[var(--border-color)] text-zinc-400 transition-colors"
-                  aria-label="關閉"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-
-            {/* Content */}
-            <div className="px-5 py-4 overflow-y-auto max-h-[calc(100vh-5rem)] md:max-h-none custom-scrollbar mobile-scroll">
-              {children}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            {children}
+          </ScrollView>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  sheet: {
+    backgroundColor: '#18181b',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    maxHeight: SCREEN_HEIGHT * 0.9,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.6,
+    shadowRadius: 60,
+    elevation: 24,
+  },
+  dragArea: {
+    paddingTop: 12,
+    paddingBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  closeButton: {
+    padding: 6,
+    borderRadius: 12,
+  },
+  content: {
+    paddingHorizontal: 20,
+  },
+  contentContainer: {
+    paddingVertical: 16,
+  },
+});
 
 export const BottomSheet = memo(BottomSheetInner);
 export default BottomSheet;
