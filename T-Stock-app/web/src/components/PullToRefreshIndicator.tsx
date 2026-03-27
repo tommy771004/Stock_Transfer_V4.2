@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, Animated, Easing, Platform, SafeAreaView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Animated,
+  Easing,
+  Platform,
+  SafeAreaView,
+} from 'react-native';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown, X } from 'lucide-react-native';
 import { safeN } from '../utils/helpers';
 import { useSettings } from '../contexts/SettingsContext';
@@ -55,7 +66,7 @@ export const PriceBar: React.FC<PriceBarProps> = React.memo(
     };
 
     return (
-      <SafeAreaView>
+      <SafeAreaView style={styles.safeArea}>
         <View style={[styles.card, compact ? styles.cardCompact : styles.cardRegular]}>
           <View style={[styles.leftRow, compact ? styles.gapSm : styles.gapMd]}>
             <Text style={[styles.symbol, compact ? styles.symbolCompact : styles.symbolRegular]}>{symbol}</Text>
@@ -68,8 +79,14 @@ export const PriceBar: React.FC<PriceBarProps> = React.memo(
               </View>
             ) : price != null ? (
               <View style={styles.inlineRow}>
-                <Text style={[styles.price, compact ? styles.priceCompact : styles.priceRegular, isUp ? styles.up : styles.down]}>{safeN(price)}</Text>
-                {isUp ? <TrendingUp size={compact ? 16 : 18} color="#34d399" /> : <TrendingDown size={compact ? 16 : 18} color="#fb7185" />}
+                <Text style={[styles.price, compact ? styles.priceCompact : styles.priceRegular, isUp ? styles.up : styles.down]}>
+                  {safeN(price)}
+                </Text>
+                {isUp ? (
+                  <TrendingUp size={compact ? 16 : 18} color="#34d399" />
+                ) : (
+                  <TrendingDown size={compact ? 16 : 18} color="#fb7185" />
+                )}
               </View>
             ) : null}
 
@@ -108,7 +125,11 @@ export const PriceBar: React.FC<PriceBarProps> = React.memo(
               onPress={() => setFocusMode(!focusMode)}
               accessibilityLabel="專注模式"
               accessibilityState={{ pressed: focusMode }}
-              style={[styles.actionBtn, compact ? styles.actionBtnCompact : styles.actionBtnRegular, focusMode ? styles.focusActive : styles.focusInactive]}
+              style={[
+                styles.actionBtn,
+                compact ? styles.actionBtnCompact : styles.actionBtnRegular,
+                focusMode ? styles.focusActive : styles.focusInactive,
+              ]}
               activeOpacity={0.8}
             >
               <Text style={[styles.actionText, focusMode ? styles.focusTextActive : styles.focusTextInactive]}>✨ 專注</Text>
@@ -130,7 +151,12 @@ export const PriceBar: React.FC<PriceBarProps> = React.memo(
               onPress={loadData}
               disabled={loading}
               accessibilityLabel="重新載入資料"
-              style={[styles.actionBtn, compact ? styles.actionBtnCompact : styles.actionBtnRegular, styles.actionBtnMuted, loading && styles.disabled]}
+              style={[
+                styles.actionBtn,
+                compact ? styles.actionBtnCompact : styles.actionBtnRegular,
+                styles.actionBtnMuted,
+                loading && styles.disabled,
+              ]}
               activeOpacity={0.8}
             >
               <RefreshCw size={compact ? 12 : 14} color="rgba(255,255,255,0.6)" />
@@ -158,7 +184,12 @@ export const PriceBar: React.FC<PriceBarProps> = React.memo(
             >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>設定價格警示</Text>
-                <TouchableOpacity onPress={() => setAlertOpen(false)} style={styles.closeBtn} accessibilityLabel="關閉" activeOpacity={0.8}>
+                <TouchableOpacity
+                  onPress={() => setAlertOpen(false)}
+                  style={styles.closeBtn}
+                  accessibilityLabel="關閉"
+                  activeOpacity={0.8}
+                >
                   <X size={16} color="#a1a1aa" />
                 </TouchableOpacity>
               </View>
@@ -197,6 +228,9 @@ export const PriceBar: React.FC<PriceBarProps> = React.memo(
 );
 
 const styles = StyleSheet.create({
+  safeArea: {
+    alignSelf: 'stretch',
+  },
   card: {
     alignSelf: 'stretch',
     borderRadius: 16,
@@ -222,12 +256,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-  gapSm: { columnGap: 8, rowGap: 8 },
-  gapMd: { columnGap: 16, rowGap: 8 },
+  gapSm: {
+    gap: 8,
+  },
+  gapMd: {
+    gap: 16,
+  },
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    columnGap: 8,
+    gap: 8,
   },
   symbol: {
     fontWeight: '900',
@@ -361,7 +399,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    columnGap: 8,
+    gap: 8,
   },
   modalBtn: {
     flex: 1,
