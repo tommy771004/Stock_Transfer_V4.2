@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Plus, X, AlertCircle } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { Bell, Plus, X, AlertCircle } from 'lucide-react-native';
 import * as api from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
 import { Alert } from '../types';
@@ -16,7 +16,7 @@ export const Alerts: React.FC<AlertsProps> = React.memo(({ symbol }) => {
   const [target, setTarget] = useState('');
   const [condition, setCondition] = useState<'above' | 'below'>('above');
   const [adding, setAdding] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number|null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -53,55 +53,185 @@ export const Alerts: React.FC<AlertsProps> = React.memo(({ symbol }) => {
   };
 
   return (
-    <div className={cn("bg-[var(--card-bg)] rounded-2xl border border-[var(--border-color)] shrink-0", compact ? "p-2" : "p-3")}>
-      <div className={cn("flex items-center justify-between", compact ? "mb-1" : "mb-2")}>
-        <span className={cn("font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1", compact ? "label-meta" : "text-xs")}>
-          <Bell size={compact ? 10 : 12} /> 警示設定
-        </span>
-        <button onClick={() => setAdding(!adding)} className="text-emerald-400 hover:text-emerald-300">
-          {adding ? <X size={compact ? 12 : 14} /> : <Plus size={compact ? 12 : 14} />}
-        </button>
-      </div>
+    <View style={[styles.container, compact ? styles.p2 : styles.p3]}>
+      <View style={[styles.header, compact ? styles.mb1 : styles.mb2]}>
+        <View style={styles.titleRow}>
+          <Bell size={compact ? 10 : 12} color="#71717a" />
+          <Text style={[styles.titleText, compact ? styles.textXs : styles.textSm]}>
+            警示設定
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => setAdding(!adding)}>
+          {adding ? <X size={compact ? 12 : 14} color="#34d399" /> : <Plus size={compact ? 12 : 14} color="#34d399" />}
+        </TouchableOpacity>
+      </View>
 
-      {error && (
-        <div className={cn("flex items-center gap-1.5 text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg", compact ? "p-1.5 text-xs mb-1" : "p-2 text-sm mb-2")}>
-          <AlertCircle size={compact ? 10 : 12}/> {error}
-          <button onClick={() => setError('')} className="ml-auto"><X size={compact ? 10 : 12}/></button>
-        </div>
+      {!!error && (
+        <View style={[styles.errorBox, compact ? styles.p1_5 : styles.p2, compact ? styles.mb1 : styles.mb2]}>
+          <AlertCircle size={compact ? 10 : 12} color="#fb7185" />
+          <Text style={[styles.errorText, compact ? styles.textXs : styles.textSm]}>{error}</Text>
+          <TouchableOpacity onPress={() => setError('')} style={styles.mlAuto}>
+            <X size={compact ? 10 : 12} color="#fb7185" />
+          </TouchableOpacity>
+        </View>
       )}
 
       {adding && (
-        <div className={cn("space-y-2", compact ? "mb-2" : "mb-3")}>
-          <div className="flex gap-2">
-            <select aria-label="價格條件" value={condition} onChange={e => setCondition(e.target.value as 'above' | 'below')} className={cn("bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)]", compact ? "text-xs" : "text-sm")}>
-              <option value="above">高於</option>
-              <option value="below">低於</option>
-            </select>
-            <input aria-label="目標價格" type="number" min="0" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="價格" className={cn("flex-1 bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)] font-mono text-base md:text-sm")} />
-          </div>
-          <button onClick={addAlert} className={cn("w-full py-1.5 rounded-lg bg-emerald-500 text-black font-bold", compact ? "text-xs" : "text-sm")}>新增警示</button>
-        </div>
+        <View style={[styles.addForm, compact ? styles.mb2 : styles.mb3]}>
+          <View style={styles.inputRow}>
+            <TouchableOpacity 
+              style={[styles.inputBase, styles.conditionBtn]} 
+              onPress={() => setCondition(prev => prev === 'above' ? 'below' : 'above')}
+            >
+              <Text style={[styles.inputText, compact ? styles.textXs : styles.textSm]}>
+                {condition === 'above' ? '高於' : '低於'}
+              </Text>
+            </TouchableOpacity>
+            <TextInput
+              value={target}
+              onChangeText={setTarget}
+              keyboardType="numeric"
+              placeholder="價格"
+              placeholderTextColor="#71717a"
+              style={[styles.inputBase, styles.flex1, styles.inputText, compact ? styles.textXs : styles.textSm]}
+            />
+          </View>
+          <TouchableOpacity style={[styles.submitBtn, compact ? styles.py1_5 : styles.py2]} onPress={addAlert}>
+            <Text style={[styles.submitText, compact ? styles.textXs : styles.textSm]}>新增警示</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
-      <div className={cn(compact ? "space-y-1" : "space-y-2")}>
+      <View style={compact ? styles.spaceY1 : styles.spaceY2}>
         {alerts.filter(a => a.symbol === symbol).map(a => (
-          <div key={a.id} className={cn("flex items-center justify-between rounded-lg bg-[var(--card-bg)] text-[var(--text-color)]", compact ? "p-2 text-xs" : "p-3 text-sm")}>
-            <span>{a.condition === 'above' ? '↑' : '↓'} {a.target}</span>
+          <View key={a.id} style={[styles.alertItem, compact ? styles.p2 : styles.p3]}>
+            <Text style={[styles.alertText, compact ? styles.textXs : styles.textSm]}>
+              {a.condition === 'above' ? '↑' : '↓'} {a.target}
+            </Text>
             {deleteConfirmId === a.id ? (
-              <div className="flex items-center gap-1">
-                <button onClick={() => deleteAlert(a.id)} className="text-rose-400 hover:text-rose-300" title="確認刪除">
-                  <AlertCircle size={compact ? 12 : 14} />
-                </button>
-                <button onClick={() => setDeleteConfirmId(null)} className="text-zinc-500 hover:text-[var(--text-color)] opacity-70" title="取消">
-                  <X size={compact ? 12 : 14} />
-                </button>
-              </div>
+              <View style={styles.actionRow}>
+                <TouchableOpacity onPress={() => deleteAlert(a.id)}>
+                  <AlertCircle size={compact ? 12 : 14} color="#fb7185" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setDeleteConfirmId(null)}>
+                  <X size={compact ? 12 : 14} color="#71717a" />
+                </TouchableOpacity>
+              </View>
             ) : (
-              <button onClick={() => setDeleteConfirmId(a.id)} className="text-zinc-500 hover:text-rose-400"><X size={compact ? 12 : 14} /></button>
+              <TouchableOpacity onPress={() => setDeleteConfirmId(a.id)}>
+                <X size={compact ? 12 : 14} color="#71717a" />
+              </TouchableOpacity>
             )}
-          </div>
+          </View>
         ))}
-      </div>
-    </div>
+      </View>
+    </View>
   );
+});
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    flexShrink: 0,
+  },
+  p2: { padding: 8 },
+  p3: { padding: 12 },
+  mb1: { marginBottom: 4 },
+  mb2: { marginBottom: 8 },
+  mb3: { marginBottom: 12 },
+  p1_5: { padding: 6 },
+  py1_5: { paddingVertical: 6 },
+  py2: { paddingVertical: 8 },
+  textXs: { fontSize: 12 },
+  textSm: { fontSize: 14 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  titleText: {
+    fontWeight: 'bold',
+    color: '#71717a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.2)',
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#fb7185',
+  },
+  mlAuto: {
+    marginLeft: 'auto',
+  },
+  addForm: {
+    gap: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  inputBase: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  conditionBtn: {
+    justifyContent: 'center',
+  },
+  flex1: {
+    flex: 1,
+  },
+  inputText: {
+    color: '#ffffff',
+  },
+  submitBtn: {
+    width: '100%',
+    borderRadius: 8,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitText: {
+    color: '#000000',
+    fontWeight: 'bold',
+  },
+  spaceY1: {
+    gap: 4,
+  },
+  spaceY2: {
+    gap: 8,
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 8,
+    backgroundColor: '#1c1c1e',
+  },
+  alertText: {
+    color: '#ffffff',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
 });
