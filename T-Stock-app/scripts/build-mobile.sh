@@ -42,14 +42,13 @@ rm -rf "$ASSETS_WEB/assets"
 
 echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 mkdir -p "$ASSETS_WEB"
-
-echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 cd "$WEB_DIR"
 npm run build:mobile
 
-# 確認 index.html 是否成功生成
+# Verify output exists — fail loudly here rather than silently later in
+# Xcode / Android Studio when Asset.fromModule() can't resolve the file.
 if [ ! -f "$ASSETS_WEB/index.html" ]; then
-  echo "❌ Error: index.html was not generated in $ASSETS_WEB"
+  echo "❌ Build failed: $ASSETS_WEB/index.html was not produced." >&2
   exit 1
 fi
 

@@ -59,6 +59,22 @@ const withAndroidReleaseKeystore = (config) => {
       contents = contents.slice(0, releaseBlockStart) + patched;
     }
 
+    // Validate both patches succeeded — throw so prebuild fails loudly rather
+    // than silently producing a release APK still signed with the debug key.
+    if (!contents.includes('TSTOCK_STORE_FILE')) {
+      throw new Error(
+        '[withAndroidReleaseKeystore] Failed to inject release signingConfig.\n' +
+        'The build.gradle format may have changed after an Expo upgrade.\n' +
+        'Please update the string-match pattern in plugins/withAndroidReleaseKeystore.js.',
+      );
+    }
+    if (!contents.includes('signingConfig signingConfigs.release')) {
+      throw new Error(
+        '[withAndroidReleaseKeystore] Failed to swap buildTypes.release signingConfig.\n' +
+        'Release APK would still be signed with the debug keystore.',
+      );
+    }
+
     mod.modResults.contents = contents;
     return mod;
   });
