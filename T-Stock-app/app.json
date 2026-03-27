@@ -48,12 +48,6 @@
           "backgroundColor": "#09090b",
           "resizeMode": "contain"
         }
-      ],
-      [
-        "react-native-webview",
-        {
-          "androidPermissions": []
-        }
       ]
     ],
     "experiments": {
