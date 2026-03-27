@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Activity, RefreshCw, BarChart2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Activity, RefreshCw, BarChart2 } from 'lucide-react-native';
 import * as api from '../services/api';
 import { Position, Quote } from '../types';
 import Decimal from 'decimal.js';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 
 interface Holding {
   symbol: string;
@@ -13,6 +22,8 @@ interface Holding {
   pnl: number;
   flash: string;
 }
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PaperTradingDashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -32,19 +43,23 @@ export default function PaperTradingDashboard() {
         return;
       }
 
-      // Fetch live quotes for all held symbols
       const symbols = positions.map((p: Position) => p.symbol);
       const quotes = await api.getBatchQuotes(symbols).catch(() => []);
       const quoteMap = new Map<string, Quote>();
       if (Array.isArray(quotes)) {
-        quotes.forEach((q: Quote) => { if (q?.symbol) quoteMap.set(q.symbol, q); });
+        quotes.forEach((q: Quote) => {
+          if (q?.symbol) quoteMap.set(q.symbol, q);
+        });
       }
 
       const newHoldings: Holding[] = positions.map((p: Position) => {
         const q = quoteMap.get(p.symbol);
         const currentPrice = q?.regularMarketPrice ?? p.avgCost;
-        const pnl = isFinite(currentPrice) && isFinite(p.avgCost) && isFinite(p.shares)
-          ? new Decimal(currentPrice).minus(p.avgCost).times(p.shares).toNumber() : 0;
+        const pnl =
+          isFinite(currentPrice) && isFinite(p.avgCost) && isFinite(p.shares)
+            ? new Decimal(currentPrice).minus(p.avgCost).times(p.shares).toNumber()
+            : 0;
+
         return {
           symbol: p.symbol,
           qty: p.shares,
@@ -56,9 +71,14 @@ export default function PaperTradingDashboard() {
       });
 
       setHoldings(newHoldings);
-      setTotalAssets(newHoldings.reduce((s, h) => new Decimal(s).plus(new Decimal(h.currentPrice).times(h.qty)).toNumber(), 0));
+      setTotalAssets(
+        newHoldings.reduce(
+          (s, h) => new Decimal(s).plus(new Decimal(h.currentPrice).times(h.qty)).toNumber(),
+          0
+        )
+      );
       setTodayPnl(newHoldings.reduce((s, h) => new Decimal(s).plus(h.pnl).toNumber(), 0));
-    } catch(e) {
+    } catch (e) {
       console.warn('[PaperTrading] refreshPrices:', e);
       setError(e instanceof Error ? e.message : '連線異常');
     } finally {
@@ -66,11 +86,13 @@ export default function PaperTradingDashboard() {
     }
   }, []);
 
-  useEffect(() => { fetchPositions(); }, [fetchPositions]);
+  useEffect(() => {
+    fetchPositions();
+  }, [fetchPositions]);
 
-  // Refresh prices every 30s — stable ref to avoid interval reset
   const fetchRef = useRef(fetchPositions);
   fetchRef.current = fetchPositions;
+
   useEffect(() => {
     const interval = setInterval(() => fetchRef.current(), 30000);
     return () => clearInterval(interval);
@@ -81,125 +103,404 @@ export default function PaperTradingDashboard() {
 
   if (error) {
     return (
-      <div className="liquid-glass rounded-2xl p-6 flex flex-col items-center justify-center gap-4 h-48 text-center">
-        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-          <Activity className="w-6 h-6 text-red-500" />
-        </div>
-        <div>
-          <h3 className="text-zinc-100 font-bold mb-1">連線異常</h3>
-          <p className="text-zinc-400 text-sm max-w-xs mx-auto">{error}</p>
-        </div>
-        <button 
-          onClick={() => fetchPositions()}
-          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg text-sm transition-colors flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          重新整理
-        </button>
-      </div>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIconWrap}>
+            <Activity size={24} color="#ef4444" />
+          </View>
+          <View style={styles.errorTextWrap}>
+            <Text style={styles.errorTitle}>連線異常</Text>
+            <Text style={styles.errorMessage}>{error}</Text>
+          </View>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchPositions} activeOpacity={0.85}>
+            <RefreshCw size={16} color="#f4f4f5" />
+            <Text style={styles.retryButtonText}>重新整理</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (loading) {
     return (
-      <div className="liquid-glass rounded-2xl p-6 flex flex-col gap-4 h-48">
-        <div className="flex items-center justify-between">
-          <div className="h-5 w-48 bg-zinc-800 rounded-lg animate-pulse"/>
-          <div className="h-5 w-20 bg-zinc-800 rounded-lg animate-pulse"/>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-800 animate-pulse">
-              <div className="h-3 w-16 bg-zinc-700 rounded mb-2"/>
-              <div className="h-6 w-24 bg-zinc-700 rounded"/>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-4 flex-1">
-          {[1,2].map(i => (
-            <div key={i} className="flex-1 bg-zinc-800/50 rounded-2xl border border-zinc-800 animate-pulse"/>
-          ))}
-        </div>
-      </div>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingHeader}>
+            <View style={[styles.pulse, { width: 190, height: 20 }]} />
+            <View style={[styles.pulse, { width: 80, height: 20 }]} />
+          </View>
+
+          <View style={styles.statsRow}>
+            {[1, 2, 3].map(i => (
+              <View key={i} style={styles.loadingCard}>
+                <View style={[styles.pulse, { width: 64, height: 12, marginBottom: 8 }]} />
+                <View style={[styles.pulse, { width: 96, height: 24 }]} />
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.loadingHoldingsRow}>
+            {[1, 2].map(i => (
+              <View key={i} style={styles.loadingHoldingCard} />
+            ))}
+          </View>
+
+          <View style={styles.loadingSpinnerWrap}>
+            <ActivityIndicator size="small" color="#a1a1aa" />
+          </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <div className="liquid-glass rounded-2xl p-6 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Activity className="text-emerald-400" size={20} />
-          模擬交易看板 (Paper Trading)
-        </h2>
-        <div className="flex items-center gap-3">
-          <button onClick={fetchPositions} className="p-1.5 rounded-lg hover:bg-[var(--border-color)] text-zinc-500 transition-colors">
-            <RefreshCw size={14} />
-          </button>
-          <div className="text-right">
-            <div className="text-xs text-zinc-500">總資產</div>
-            <div className="text-xl font-black text-white">${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-          </div>
-        </div>
-      </div>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            <Activity size={20} color="#34d399" />
+            <Text> </Text>
+            <Text>模擬交易看板 (Paper Trading)</Text>
+          </Text>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-[var(--card-bg)] rounded-xl p-4 border border-[var(--border-color)]">
-          <div className="text-xs text-zinc-500 mb-1">未實現盈虧</div>
-          <div className={cn("text-lg font-bold", todayPnl >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
-            {todayPnl >= 0 ? '+' : ''}${todayPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </div>
-        </div>
-        <div className="bg-[var(--card-bg)] rounded-xl p-4 border border-[var(--border-color)]">
-          <div className="text-xs text-zinc-500 mb-1">持倉數</div>
-          <div className="text-lg font-bold text-white">{holdings.length}</div>
-        </div>
-        <div className="bg-[var(--card-bg)] rounded-xl p-4 border border-[var(--border-color)]">
-          <div className="text-xs text-zinc-500 mb-1">勝率</div>
-          <div className="text-lg font-bold text-white">{winRate}%</div>
-        </div>
-      </div>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={fetchPositions} style={styles.refreshIconButton} activeOpacity={0.7}>
+              <RefreshCw size={14} color="#71717a" />
+            </TouchableOpacity>
+            <View style={styles.assetsWrap}>
+              <Text style={styles.assetsLabel}>總資產</Text>
+              <Text style={styles.assetsValue}>
+                ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </Text>
+            </View>
+          </View>
+        </View>
 
-      {holdings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center border border-zinc-700">
-            <BarChart2 size={20} className="text-zinc-600"/>
-          </div>
-          <p className="text-zinc-400 text-sm font-bold">尚無持倉資料</p>
-          <p className="text-zinc-600 text-xs">在交易頁面下單後，持倉將顯示在此處</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-8">
-            {holdings.map(h => (
-              <div
-                key={h.symbol}
-                className={cn(
-                  "min-w-[280px] bg-zinc-900 rounded-2xl p-6 border border-zinc-700 shadow-xl transition-colors duration-300 hover:bg-zinc-800",
-                  h.flash
-                )}
-              >
-                <div className="flex justify-between items-center mb-5">
-                  <span className="font-bold text-white text-xl">{h.symbol}</span>
-                  <span className={cn('font-mono font-bold text-lg', h.pnl > 0 ? 'text-emerald-400' : 'text-rose-400')}>
-                    {h.pnl > 0 ? '+' : ''}{h.pnl.toLocaleString()}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm text-zinc-300 mb-5">
-                  <div>持倉: <span className="text-white font-mono font-semibold">{h.qty.toLocaleString()}</span></div>
-                  <div>均價: <span className="text-white font-mono font-semibold">{h.avgPrice.toFixed(2)}</span></div>
-                  <div>現價: <span className="text-white font-mono font-semibold">{h.currentPrice.toFixed(2)}</span></div>
-                </div>
-                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div
-                    className={cn("h-full", h.pnl > 0 ? 'bg-emerald-500' : 'bg-rose-500')}
-                    style={{ width: `${Math.min(Math.abs(h.pnl) / 500, 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>未實現盈虧</Text>
+            <Text style={[styles.statValue, todayPnl >= 0 ? styles.positiveText : styles.negativeText]}>
+              {todayPnl >= 0 ? '+' : ''}
+              ${todayPnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>持倉數</Text>
+            <Text style={styles.statValueWhite}>{holdings.length}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>勝率</Text>
+            <Text style={styles.statValueWhite}>{winRate}%</Text>
+          </View>
+        </View>
+
+        {holdings.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIconWrap}>
+              <BarChart2 size={20} color="#52525b" />
+            </View>
+            <Text style={styles.emptyTitle}>尚無持倉資料</Text>
+            <Text style={styles.emptySubtitle}>在交易頁面下單後，持倉將顯示在此處</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.holdingsRow}>
+              {holdings.map(h => (
+                <View
+                  key={h.symbol}
+                  style={[
+                    styles.holdingCard,
+                    h.flash ? { backgroundColor: h.flash } : null,
+                  ]}
+                >
+                  <View style={styles.holdingHeader}>
+                    <Text style={styles.symbol}>{h.symbol}</Text>
+                    <Text style={[styles.pnl, h.pnl > 0 ? styles.positiveText : styles.negativeText]}>
+                      {h.pnl > 0 ? '+' : ''}
+                      {h.pnl.toLocaleString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailsGrid}>
+                    <Text style={styles.detailText}>
+                      持倉: <Text style={styles.detailValue}>{h.qty.toLocaleString()}</Text>
+                    </Text>
+                    <Text style={styles.detailText}>
+                      均價: <Text style={styles.detailValue}>{h.avgPrice.toFixed(2)}</Text>
+                    </Text>
+                    <Text style={styles.detailText}>
+                      現價: <Text style={styles.detailValue}>{h.currentPrice.toFixed(2)}</Text>
+                    </Text>
+                  </View>
+
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        h.pnl > 0 ? styles.progressPositive : styles.progressNegative,
+                        { width: `${Math.min(Math.abs(h.pnl) / 500, 100)}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  container: {
+    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+    borderRadius: 16,
+    padding: 24,
+    gap: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refreshIconButton: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  assetsWrap: {
+    alignItems: 'flex-end',
+  },
+  assetsLabel: {
+    fontSize: 12,
+    color: '#71717a',
+  },
+  assetsValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(39, 39, 42, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#71717a',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statValueWhite: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  positiveText: {
+    color: '#34d399',
+  },
+  negativeText: {
+    color: '#fb7185',
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 12,
+  },
+  emptyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#27272a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+  emptyTitle: {
+    color: '#a1a1aa',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptySubtitle: {
+    color: '#52525b',
+    fontSize: 12,
+  },
+  scrollContent: {
+    paddingBottom: 16,
+  },
+  holdingsRow: {
+    flexDirection: 'row',
+    gap: 32,
+  },
+  holdingCard: {
+    width: Math.min(280, SCREEN_WIDTH * 0.78),
+    backgroundColor: '#18181b',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+  holdingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  symbol: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  pnl: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  detailsGrid: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#d4d4d8',
+  },
+  detailValue: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  progressTrack: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#27272a',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  progressPositive: {
+    backgroundColor: '#10b981',
+  },
+  progressNegative: {
+    backgroundColor: '#f43f5e',
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    minHeight: 192,
+    textAlign: 'center',
+  },
+  errorIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorTextWrap: {
+    alignItems: 'center',
+  },
+  errorTitle: {
+    color: '#f4f4f5',
+    fontWeight: '700',
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  errorMessage: {
+    color: '#a1a1aa',
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#27272a',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  retryButtonText: {
+    color: '#f4f4f5',
+    fontSize: 14,
+  },
+  loadingContainer: {
+    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+    borderRadius: 16,
+    padding: 24,
+    gap: 16,
+    minHeight: 192,
+  },
+  loadingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  loadingCard: {
+    flex: 1,
+    backgroundColor: 'rgba(39, 39, 42, 0.5)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#27272a',
+  },
+  loadingHoldingsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    flex: 1,
+  },
+  loadingHoldingCard: {
+    flex: 1,
+    backgroundColor: 'rgba(39, 39, 42, 0.5)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#27272a',
+  },
+  loadingSpinnerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+  },
+  pulse: {
+    backgroundColor: '#3f3f46',
+    borderRadius: 8,
+  },
+});
