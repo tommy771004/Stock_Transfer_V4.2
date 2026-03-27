@@ -1,6 +1,18 @@
 /**
  * src/services/api.ts
- * Unified data access layer — auto-detects Electron IPC vs web fetch.
+ * Unified data access layer.
+ *
+ * Tier 1 — Electron IPC    (Desktop app via window.api)
+ * Tier 2 — HTTP server     (Dev / web, calls /api/...)
+ * Tier 3 — localStorage    (Mobile WebView, CRUD data only)
+ *
+ * Detection:
+ *   IS_ELECTRON        → window.api.isElectron is true
+ *   IS_MOBILE_WEBVIEW  → window.__EXPO_WEBVIEW__ injected by Expo native shell
+ *
+ * In mobile mode, CRUD data persists in localStorage.
+ * Market data calls use VITE_API_BASE (set in .env) when available,
+ * otherwise fail gracefully (components show empty / error state).
  */
 
 import { Quote, NewsItem, CalendarData, WatchlistItem, Trade, Position, Alert, HistoricalData, BacktestResult, BacktestParams, ScreenerResult, TWSEData, MTFTrendRecord, TradeDTO, mapTradeDTO } from '../types';
@@ -44,6 +56,7 @@ declare global {
 
 import { getCachedData, setCachedData } from './cache';
 import { fetchJ } from '../utils/api';
+import { loadFromStorage, saveToStorage } from '../utils/storage';
 
 /** Log API fallbacks so failures are visible during development. */
 const apiWarn = (ctx: string, e: unknown) => {
@@ -51,142 +64,263 @@ const apiWarn = (ctx: string, e: unknown) => {
 };
 
 const IS_ELECTRON = typeof window !== 'undefined' && !!window.api?.isElectron;
+
+/** True when running inside the Expo React Native WebView shell */
+const IS_MOBILE_WEBVIEW =
+  typeof window !== 'undefined' && !!(window as Window & { __EXPO_WEBVIEW__?: boolean }).__EXPO_WEBVIEW__;
+
+/**
+ * Base URL for server API calls.
+ * In mobile WebView: read from localStorage (user can configure in Settings),
+ * or fall back to same-origin (which will fail gracefully if no server).
+ */
+const mobileApiBase = (): string => {
+  if (!IS_MOBILE_WEBVIEW) return '';
+  try { return localStorage.getItem('mobile_api_base') ?? ''; } catch { return ''; }
+};
+
+/** Build a full API URL, honouring mobileApiBase when in WebView. */
+const apiUrl = (path: string) => `${mobileApiBase()}${path}`;
+
 const E = () => {
   if (!window.api) throw new Error('Electron API not available');
   return window.api;
 };
 
-// ── Stock ─────────────────────────────────────────────────────────────────────
+// ── localStorage keys for mobile CRUD persistence ────────────────────────────
+const LS = {
+  watchlist:  'tstock_watchlist',
+  positions:  'tstock_positions',
+  trades:     'tstock_trades',
+  alerts:     'tstock_alerts',
+  settings:   'tstock_settings',
+} as const;
+
+// ── Stock (market data — requires server; fails gracefully in offline mobile) ──
 export const getQuote = async (sym: string): Promise<Quote> => {
   const cached = getCachedData<Quote>(`quote:${sym}`);
   if (cached) return cached;
-  const data = IS_ELECTRON ? await E().getQuote(sym) : await fetchJ<Quote>(`/api/stock/${sym}`);
+  const data = IS_ELECTRON
+    ? await E().getQuote(sym)
+    : await fetchJ<Quote>(apiUrl(`/api/stock/${sym}`));
   setCachedData(`quote:${sym}`, data);
   return data;
 };
 
 export const getHistory = (sym: string, opts?: Record<string, string | number>): Promise<HistoricalData[]> => {
   if (IS_ELECTRON) return E().getHistory(sym, opts);
-  const p = new URLSearchParams(opts as Record<string, string> ?? {}); return fetchJ<HistoricalData[]>(`/api/stock/${sym}/history?${p}`);
+  const p = new URLSearchParams(opts as Record<string, string> ?? {});
+  return fetchJ<HistoricalData[]>(apiUrl(`/api/stock/${sym}/history?${p}`));
 };
 
 export const getBatchQuotes = (syms: string[]): Promise<Quote[]> =>
-  IS_ELECTRON ? E().getBatch(syms) : fetchJ<Quote[]>(`/api/quotes?symbols=${syms.join(',')}`);
+  IS_ELECTRON
+    ? E().getBatch(syms)
+    : fetchJ<Quote[]>(apiUrl(`/api/quotes?symbols=${syms.join(',')}`));
 
 export const getNews = async (sym: string): Promise<NewsItem[]> => {
   const cached = getCachedData<NewsItem[]>(`news:${sym}`);
   if (cached) return cached;
   try {
-    const data = IS_ELECTRON ? await E().getNews(sym) : await fetchJ<NewsItem[]>(`/api/news/${sym}`);
+    const data = IS_ELECTRON
+      ? await E().getNews(sym)
+      : await fetchJ<NewsItem[]>(apiUrl(`/api/news/${sym}`));
     setCachedData(`news:${sym}`, data);
     return data;
-  } catch (e) {
-    apiWarn('getNews', e);
-    throw e;
-  }
+  } catch (e) { apiWarn('getNews', e); throw e; }
 };
 
 export const getCalendar = async (sym: string): Promise<CalendarData> => {
   const cached = getCachedData<CalendarData>(`cal:${sym}`);
   if (cached) return cached;
   try {
-    const data = IS_ELECTRON ? await E().getCalendar(sym) : await fetchJ<CalendarData>(`/api/calendar/${sym}`);
+    const data = IS_ELECTRON
+      ? await E().getCalendar(sym)
+      : await fetchJ<CalendarData>(apiUrl(`/api/calendar/${sym}`));
     setCachedData(`cal:${sym}`, data);
     return data;
-  } catch (e) {
-    apiWarn('getCalendar', e);
-    throw e;
-  }
+  } catch (e) { apiWarn('getCalendar', e); throw e; }
 };
 
-export const getForexRate  = (pair = 'USDTWD=X'): Promise<number> =>
-  IS_ELECTRON ? E().getForex(pair) : fetchJ<{ rate?: number }>(`/api/forex/${pair}`).then(r => {
-    if (r.rate == null) throw new Error('Forex rate not found');
-    return r.rate;
-  }).catch(e => {
-    apiWarn('getForexRate', e);
-    throw e;
-  });
+export const getForexRate = (pair = 'USDTWD=X'): Promise<number> =>
+  IS_ELECTRON
+    ? E().getForex(pair)
+    : fetchJ<{ rate?: number }>(apiUrl(`/api/forex/${pair}`)).then(r => {
+        if (r.rate == null) throw new Error('Forex rate not found');
+        return r.rate;
+      }).catch(e => { apiWarn('getForexRate', e); throw e; });
 
-export const getTWSEStock  = (stockNo: string): Promise<TWSEData> =>
-  IS_ELECTRON ? E().getTWSE(stockNo) : fetchJ<TWSEData>(`/api/twse/stock/${stockNo}`);
+export const getTWSEStock = (stockNo: string): Promise<TWSEData> =>
+  IS_ELECTRON ? E().getTWSE(stockNo) : fetchJ<TWSEData>(apiUrl(`/api/twse/stock/${stockNo}`));
 
 export const getMTF = (sym: string, opts?: Record<string, string | number>): Promise<MTFTrendRecord> => {
   if (IS_ELECTRON) return E().getMTF(sym, opts);
-  const p = new URLSearchParams(opts as Record<string, string> ?? {}); return fetchJ<MTFTrendRecord>(`/api/stock/${sym}/mtf?${p}`);
+  const p = new URLSearchParams(opts as Record<string, string> ?? {});
+  return fetchJ<MTFTrendRecord>(apiUrl(`/api/stock/${sym}/mtf?${p}`));
 };
 
-export const runBacktest   = (p: BacktestParams): Promise<BacktestResult> =>
-  IS_ELECTRON ? E().runBacktest(p)
-    : fetchJ<BacktestResult>('/api/backtest', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p) });
+export const runBacktest = (p: BacktestParams): Promise<BacktestResult> =>
+  IS_ELECTRON
+    ? E().runBacktest(p)
+    : fetchJ<BacktestResult>(apiUrl('/api/backtest'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p),
+      });
 
 // ── Watchlist ─────────────────────────────────────────────────────────────────
-export const getWatchlist  = (): Promise<WatchlistItem[]> =>
-  IS_ELECTRON ? E().getWatchlist() : fetchJ<WatchlistItem[]>('/api/watchlist');
+export const getWatchlist = (): Promise<WatchlistItem[]> => {
+  if (IS_ELECTRON) return E().getWatchlist();
+  if (IS_MOBILE_WEBVIEW) return Promise.resolve(loadFromStorage<WatchlistItem[]>(LS.watchlist, []));
+  return fetchJ<WatchlistItem[]>(apiUrl('/api/watchlist'));
+};
 
-export const setWatchlist  = (list: WatchlistItem[]): Promise<boolean> =>
-  IS_ELECTRON ? E().setWatchlist(list)
-    : fetchJ<boolean>('/api/watchlist', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(list) });
+export const setWatchlist = (list: WatchlistItem[]): Promise<boolean> => {
+  if (IS_ELECTRON) return E().setWatchlist(list);
+  if (IS_MOBILE_WEBVIEW) { saveToStorage(LS.watchlist, list); return Promise.resolve(true); }
+  return fetchJ<boolean>(apiUrl('/api/watchlist'), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(list),
+  });
+};
 
 // ── Positions ─────────────────────────────────────────────────────────────────
-export const getPositions  = (): Promise<{ positions: Position[]; usdtwd: number }> =>
-  IS_ELECTRON ? E().getPositions() : fetchJ<{ positions: Position[]; usdtwd: number }>('/api/positions');
+export const getPositions = (): Promise<{ positions: Position[]; usdtwd: number }> => {
+  if (IS_ELECTRON) return E().getPositions();
+  if (IS_MOBILE_WEBVIEW) {
+    const saved = loadFromStorage<{ positions: Position[]; usdtwd: number }>(
+      LS.positions, { positions: [], usdtwd: 32 }
+    );
+    return Promise.resolve(saved);
+  }
+  return fetchJ<{ positions: Position[]; usdtwd: number }>(apiUrl('/api/positions'));
+};
 
-export const setPositions  = (list: Position[]): Promise<boolean> =>
-  IS_ELECTRON ? E().setPositions(list)
-    : fetchJ<boolean>('/api/positions', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(list) });
+export const setPositions = (list: Position[]): Promise<boolean> => {
+  if (IS_ELECTRON) return E().setPositions(list);
+  if (IS_MOBILE_WEBVIEW) {
+    const current = loadFromStorage<{ positions: Position[]; usdtwd: number }>(
+      LS.positions, { positions: [], usdtwd: 32 }
+    );
+    saveToStorage(LS.positions, { ...current, positions: list });
+    return Promise.resolve(true);
+  }
+  return fetchJ<boolean>(apiUrl('/api/positions'), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(list),
+  });
+};
 
 // ── Trades ────────────────────────────────────────────────────────────────────
 export const getTrades = async (): Promise<Trade[]> => {
   try {
-    const raw = IS_ELECTRON ? await E().getTrades() : await fetchJ<TradeDTO[]>('/api/trades');
-    const data = Array.isArray(raw) ? (raw as TradeDTO[]) : [];
-    return (Array.isArray(data) ? data : []).map(mapTradeDTO);
-  } catch (e) {
-    apiWarn('getTrades', e);
-    throw e;
-  }
+    if (IS_ELECTRON) {
+      const raw = await E().getTrades();
+      return (Array.isArray(raw) ? raw as TradeDTO[] : []).map(mapTradeDTO);
+    }
+    if (IS_MOBILE_WEBVIEW) {
+      return loadFromStorage<Trade[]>(LS.trades, []);
+    }
+    const raw = await fetchJ<TradeDTO[]>(apiUrl('/api/trades'));
+    return (Array.isArray(raw) ? raw : []).map(mapTradeDTO);
+  } catch (e) { apiWarn('getTrades', e); throw e; }
 };
 
-export const addTrade      = (t: Partial<Trade>): Promise<Trade> =>
-  IS_ELECTRON ? E().addTrade(t)
-    : fetchJ<Trade>('/api/trades', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(t) });
+export const addTrade = (t: Partial<Trade>): Promise<Trade> => {
+  if (IS_ELECTRON) return E().addTrade(t);
+  if (IS_MOBILE_WEBVIEW) {
+    const trades = loadFromStorage<Trade[]>(LS.trades, []);
+    const next: Trade = { ...t, id: Date.now() } as Trade;
+    saveToStorage(LS.trades, [...trades, next]);
+    return Promise.resolve(next);
+  }
+  return fetchJ<Trade>(apiUrl('/api/trades'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t),
+  });
+};
 
-export const updateTrade   = (t: Partial<Trade>): Promise<boolean> =>
-  IS_ELECTRON ? E().updateTrade(t)
-    : fetchJ<boolean>(`/api/trades/${t.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(t) });
+export const updateTrade = (t: Partial<Trade>): Promise<boolean> => {
+  if (IS_ELECTRON) return E().updateTrade(t);
+  if (IS_MOBILE_WEBVIEW) {
+    const trades = loadFromStorage<Trade[]>(LS.trades, []);
+    saveToStorage(LS.trades, trades.map(x => x.id === t.id ? { ...x, ...t } : x));
+    return Promise.resolve(true);
+  }
+  return fetchJ<boolean>(apiUrl(`/api/trades/${t.id}`), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t),
+  });
+};
 
-export const deleteTrade   = (id: number): Promise<boolean> =>
-  IS_ELECTRON ? E().deleteTrade(id) : fetchJ(`/api/trades/${id}`, { method:'DELETE' }).then(() => true).catch(e => { apiWarn('deleteTrade', e); throw e; });
+export const deleteTrade = (id: number): Promise<boolean> => {
+  if (IS_ELECTRON) return E().deleteTrade(id);
+  if (IS_MOBILE_WEBVIEW) {
+    const trades = loadFromStorage<Trade[]>(LS.trades, []);
+    saveToStorage(LS.trades, trades.filter(x => x.id !== id));
+    return Promise.resolve(true);
+  }
+  return fetchJ(apiUrl(`/api/trades/${id}`), { method: 'DELETE' })
+    .then(() => true).catch(e => { apiWarn('deleteTrade', e); throw e; });
+};
 
-export const executeTrade  = (order: Partial<Trade>): Promise<Trade> =>
-  IS_ELECTRON ? E().addTrade(order) // Fallback for electron if needed
-    : fetchJ<Trade>('/api/trade/execute', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(order) });
+export const executeTrade = (order: Partial<Trade>): Promise<Trade> => {
+  if (IS_ELECTRON) return E().addTrade(order);
+  if (IS_MOBILE_WEBVIEW) return addTrade(order);
+  return fetchJ<Trade>(apiUrl('/api/trade/execute'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order),
+  });
+};
 
 // ── Price Alerts ──────────────────────────────────────────────────────────────
-export const getAlerts     = (): Promise<Alert[]> =>
-  IS_ELECTRON ? E().getAlerts() : fetchJ<Alert[]>('/api/alerts').catch(e => { apiWarn('getAlerts', e); throw e; });
+export const getAlerts = (): Promise<Alert[]> => {
+  if (IS_ELECTRON) return E().getAlerts();
+  if (IS_MOBILE_WEBVIEW) return Promise.resolve(loadFromStorage<Alert[]>(LS.alerts, []));
+  return fetchJ<Alert[]>(apiUrl('/api/alerts')).catch(e => { apiWarn('getAlerts', e); throw e; });
+};
 
-export const addAlert      = (a: Omit<Alert, 'id'>): Promise<Alert> =>
-  IS_ELECTRON ? E().addAlert(a)
-    : fetchJ<Alert>('/api/alerts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(a) });
+export const addAlert = (a: Omit<Alert, 'id'>): Promise<Alert> => {
+  if (IS_ELECTRON) return E().addAlert(a);
+  if (IS_MOBILE_WEBVIEW) {
+    const alerts = loadFromStorage<Alert[]>(LS.alerts, []);
+    const next: Alert = { ...a, id: Date.now() } as Alert;
+    saveToStorage(LS.alerts, [...alerts, next]);
+    return Promise.resolve(next);
+  }
+  return fetchJ<Alert>(apiUrl('/api/alerts'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a),
+  });
+};
 
-export const deleteAlert   = (id: number): Promise<boolean> =>
-  IS_ELECTRON ? E().deleteAlert(id) : fetchJ(`/api/alerts/${id}`, { method:'DELETE' }).then(() => true).catch(e => { apiWarn('deleteAlert', e); throw e; });
+export const deleteAlert = (id: number): Promise<boolean> => {
+  if (IS_ELECTRON) return E().deleteAlert(id);
+  if (IS_MOBILE_WEBVIEW) {
+    const alerts = loadFromStorage<Alert[]>(LS.alerts, []);
+    saveToStorage(LS.alerts, alerts.filter(x => x.id !== id));
+    return Promise.resolve(true);
+  }
+  return fetchJ(apiUrl(`/api/alerts/${id}`), { method: 'DELETE' })
+    .then(() => true).catch(e => { apiWarn('deleteAlert', e); throw e; });
+};
 
 // ── App Settings ──────────────────────────────────────────────────────────────
-export const getSetting    = async <T>(key: string): Promise<T> => {
+export const getSetting = async <T>(key: string): Promise<T> => {
   if (IS_ELECTRON) return E().getSetting<T>(key);
-  const r = await fetchJ<{ value: T }>(`/api/settings/${key}`);
+  if (IS_MOBILE_WEBVIEW) {
+    const all = loadFromStorage<Record<string, unknown>>(LS.settings, {});
+    return all[key] as T;
+  }
+  const r = await fetchJ<{ value: T }>(apiUrl(`/api/settings/${key}`));
   return r.value;
 };
 
-export const setSetting    = async <T>(key: string, val: T): Promise<boolean> => {
+export const setSetting = async <T>(key: string, val: T): Promise<boolean> => {
   if (IS_ELECTRON) return E().setSetting<T>(key, val);
-  const r = await fetchJ<{ ok: boolean }>(`/api/settings/${key}`, { 
-    method:'PUT', 
-    headers:{'Content-Type':'application/json'}, 
-    body:JSON.stringify({ value: val }) 
+  if (IS_MOBILE_WEBVIEW) {
+    const all = loadFromStorage<Record<string, unknown>>(LS.settings, {});
+    saveToStorage(LS.settings, { ...all, [key]: val });
+    return true;
+  }
+  const r = await fetchJ<{ ok: boolean }>(apiUrl(`/api/settings/${key}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: val }),
   });
   return !!r.ok;
 };
@@ -196,7 +330,7 @@ export const getDbStats    = (): Promise<unknown> =>
   IS_ELECTRON ? E().getDbStats() : Promise.resolve(null);
 
 export const getSystemStats = (): Promise<unknown> =>
-  IS_ELECTRON ? E().getSystemStats() : fetchJ('/api/stats').catch(() => null);
+  IS_ELECTRON ? E().getSystemStats() : fetchJ(apiUrl('/api/stats')).catch(() => null);
 
 // ── Screener (XQ-style batch scan) ───────────────────────────────────────────
 export interface ScreenerFilters {
@@ -212,7 +346,7 @@ export interface ScreenerFilters {
 }
 
 export const runScreener = (symbols: string[], filters?: ScreenerFilters): Promise<{ results: ScreenerResult[] }> =>
-  fetchJ<{ results: ScreenerResult[] }>('/api/screener', {
+  fetchJ<{ results: ScreenerResult[] }>(apiUrl('/api/screener'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ symbols, filters }),
