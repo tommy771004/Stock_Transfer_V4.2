@@ -17,7 +17,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
-import { getTrades, addTrade, updateTrade, deleteTrade } from '../services/api';
+import { getTrades, addTrade, updateTrade, deleteTrade, IS_MOBILE_WEBVIEW } from '../services/api';
 import { motion } from 'motion/react';
 import { Trade } from '../types';
 import Decimal from 'decimal.js';
@@ -159,6 +159,10 @@ export default function TradeJournal() {
   };
 
   const exportCSV = () => {
+    if (IS_MOBILE_WEBVIEW) {
+      window.alert('匯出功能僅支援桌面版（Electron）。');
+      return;
+    }
     const rows = ['日期,代碼,方向,進場,出場,數量,損益,備註',
       ...trades.map(t => `${t.date},${t.ticker},${t.action},${t.entry},${t.exit},${t.qty},${t.pnl},"${t.notes??''}"`)];
     const a = document.createElement('a');

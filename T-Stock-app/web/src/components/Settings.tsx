@@ -139,6 +139,10 @@ export default function Settings() {
   };
 
   const exportSettings = () => {
+    if (IS_MOBILE_WEBVIEW) {
+      window.alert('匯出功能僅支援桌面版（Electron）。');
+      return;
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(settings, null, 2)], {type:'application/json'}));
     a.download = 'liquid-settings.json'; a.click();
