@@ -51,7 +51,8 @@
           "resizeMode": "contain"
         }
       ],
-      "./plugins/withAndroidCleartext"
+      "./plugins/withAndroidCleartext",
+      "./plugins/withAndroidReleaseKeystore"
     ],
     "runtimeVersion": {
       "policy": "appVersion"
