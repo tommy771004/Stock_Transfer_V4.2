@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   BackHandler,
   Dimensions,
   Platform,
@@ -35,7 +36,7 @@ import * as Haptics from 'expo-haptics';
  * Example: const DEV_SERVER_URL = 'http://192.168.1.10:5173';
  */
 const DEV_SERVER_URL = '';
-const IS_DEV = __DEV__ && DEV_SERVER_URL.length > 0;
+const IS_DEV = __DEV__ && DEV_SERVER_URL !== '';
 
 // ─── JS injected into the WebView ─────────────────────────────────────────────
 const INJECTED_JS = `
@@ -68,6 +69,7 @@ type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 export default function MainScreen() {
   const webRef    = useRef<WebView>(null);
   const insets    = useSafeAreaInsets();
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   const [status,    setStatus]    = useState<LoadStatus>('idle');
   const [errorMsg,  setErrorMsg]  = useState('');
@@ -105,7 +107,8 @@ export default function MainScreen() {
         await FileSystem.copyAsync({ from: asset.localUri!, to: destIndex });
         setWebUri(destIndex);
       } catch (e) {
-        setErrorMsg(e instanceof Error ? e.message : '無法載入應用程式資源');
+        const msg = e instanceof Error ? e.message : '無法載入應用程式資源';
+        setErrorMsg(msg || '無法載入應用程式資源');
         setStatus('error');
       }
     })();
@@ -128,19 +131,29 @@ export default function MainScreen() {
     setCanGoBack(nav.canGoBack);
   }, []);
 
+  const onLoadEnd = useCallback(() => {
+    setStatus('ready');
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
   const onRetry = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    fadeAnim.setValue(0);
     setStatus('idle');
     setErrorMsg('');
     webRef.current?.reload();
-  }, []);
+  }, [fadeAnim]);
 
   // ── Error screen ───────────────────────────────────────────────────────────
   if (status === 'error') {
     return (
       <View style={[s.center, { paddingTop: insets.top }]}>
         <Text style={s.errTitle}>T-Stock 發生錯誤</Text>
-        <Text style={s.errMsg}>{errorMsg}</Text>
+        <Text style={s.errMsg}>{errorMsg || '頁面載入失敗'}</Text>
         <TouchableOpacity style={s.retryBtn} onPress={onRetry} accessibilityRole="button">
           <Text style={s.retryTxt}>重試</Text>
         </TouchableOpacity>
@@ -158,13 +171,10 @@ export default function MainScreen() {
     );
   }
 
-  // ── WebView source helper ──────────────────────────────────────────────────
-  const source =
-    webUri.startsWith('http')
-      ? { uri: webUri }
-      : Platform.OS === 'android'
-      ? { uri: `file://${webUri}` }
-      : { uri: webUri };
+  // ── WebView source ─────────────────────────────────────────────────────────
+  // FileSystem.cacheDirectory already returns a full file:/// URI on both
+  // iOS and Android — do NOT add another file:// prefix.
+  const source: { uri: string } = { uri: webUri };
 
   // ── Tablet: optional max-width centering on very wide screens ─────────────
   const containerStyle = [
@@ -180,49 +190,54 @@ export default function MainScreen() {
 
   return (
     <View style={containerStyle}>
-      {status === 'loading' && (
-        <View style={StyleSheet.absoluteFill}>
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#34d399" />
-            <Text style={s.loadTxt}>T-Stock 啟動中…</Text>
-          </View>
+      {/* Loading spinner — shown until WebView fires onLoadEnd */}
+      {status !== 'ready' && (
+        <View style={[StyleSheet.absoluteFill, s.center]}>
+          <ActivityIndicator size="large" color="#34d399" />
+          <Text style={s.loadTxt}>T-Stock 啟動中…</Text>
         </View>
       )}
 
-      <WebView
-        ref={webRef}
-        source={source}
-        style={s.webview}
-        // ── Security / access ──
-        javaScriptEnabled
-        domStorageEnabled
-        allowFileAccess
-        allowUniversalAccessFromFileURLs
-        originWhitelist={['*']}
-        mixedContentMode="always"
-        // ── Performance ──
-        cacheEnabled
-        // ── JS injection ──
-        injectedJavaScript={INJECTED_JS}
-        // ── Events ──
-        onLoadStart={() => setStatus('loading')}
-        onLoadEnd={() => setStatus('ready')}
-        onError={e => {
-          setErrorMsg(e.nativeEvent.description || '頁面載入失敗');
-          setStatus('error');
-        }}
-        onNavigationStateChange={onNavChange}
-        // ── Mobile UX ──
-        bounces={false}
-        overScrollMode="never"
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        keyboardDisplayRequiresUserAction={false}
-        automaticallyAdjustContentInsets={false}
-        contentInset={{ top: 0, left: 0, bottom: 0, right: 0 }}
-        // ── Tablet: allow text scaling ──
-        textZoom={isTablet ? 110 : 100}
-      />
+      {/* WebView fades in after onLoadEnd */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
+        <WebView
+          ref={webRef}
+          source={source}
+          style={s.webview}
+          // ── Security / access ──
+          javaScriptEnabled
+          domStorageEnabled
+          allowFileAccess
+          // allowUniversalAccessFromFileURLs: only needed on iOS for file:// cross-origin;
+          // on Android the bundled HTML is self-contained so this is not required
+          // (avoids Android Studio lint error MIXED_CONTENT_ALWAYS_ALLOW)
+          allowUniversalAccessFromFileURLs={Platform.OS !== 'android'}
+          originWhitelist={['*']}
+          mixedContentMode="compatibility"
+          // ── Performance ──
+          cacheEnabled
+          // ── JS injection ──
+          injectedJavaScript={INJECTED_JS}
+          // ── Events ──
+          onLoadStart={() => setStatus('loading')}
+          onLoadEnd={onLoadEnd}
+          onError={e => {
+            setErrorMsg(e.nativeEvent.description || '頁面載入失敗');
+            setStatus('error');
+          }}
+          onNavigationStateChange={onNavChange}
+          // ── Mobile UX ──
+          bounces={false}
+          overScrollMode="never"
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          keyboardDisplayRequiresUserAction={false}
+          automaticallyAdjustContentInsets={false}
+          contentInset={{ top: 0, left: 0, bottom: 0, right: 0 }}
+          // ── Tablet: allow text scaling ──
+          textZoom={isTablet ? 110 : 100}
+        />
+      </Animated.View>
     </View>
   );
 }
