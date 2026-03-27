@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "T-Stock",
+    "slug": "t-stock-app",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icons/icon.png",
+    "scheme": "tstock",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#09090b",
+    "splash": {
+      "image": "./assets/icons/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#09090b"
+    },
+    "assetBundlePatterns": [
+      "assets/**"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tstock.app",
+      "backgroundColor": "#09090b",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "UIRequiresFullScreen": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/icon.png",
+        "backgroundColor": "#09090b"
+      },
+      "package": "com.tstock.app",
+      "softwareKeyboardLayoutMode": "resize",
+      "allowBackup": false
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#09090b",
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "react-native-webview",
+        {
+          "androidPermissions": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
