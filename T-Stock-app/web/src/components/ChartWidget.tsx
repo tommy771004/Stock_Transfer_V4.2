@@ -1,60 +1,92 @@
-import React, { useMemo } from 'react';
-import { View, Text, Dimensions } from 'react-native';
-import tw from 'twrnc';
-import { CandlestickChart } from 'react-native-wagmi-charts';
+import React, { Suspense, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
+import { useSettings } from '../contexts/SettingsContext';
 import { HistoricalData } from '../types';
 
-interface Props {
+const ChartWidget = React.lazy(() => import('./ChartWidget').catch(() => ({
+  default: () => (
+    <View style={styles.errorWrapper}>
+      <Text style={styles.errorText}>圖表載入失敗</Text>
+    </View>
+  ),
+})));
+
+interface ChartSectionProps {
+  symbol: string;
+  model: string;
+  focusMode: boolean;
   data: HistoricalData[];
 }
 
-export default function ChartWidget({ data }: Props) {
-  const chartData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return data.map(d => ({
-      timestamp: new Date(d.date).getTime(),
-      open: Number(d.open),
-      high: Number(d.high),
-      low: Number(d.low),
-      close: Number(d.close),
-    })).sort((a, b) => a.timestamp - b.timestamp);
-  }, [data]);
+export const ChartSection: React.FC<ChartSectionProps> = React.memo(({ data }) => {
+  const { settings } = useSettings();
+  const compact = settings.compactMode;
 
-  if (chartData.length === 0) {
-    return (
-      <View style={tw`flex-1 items-center justify-center`}>
-        <Text style={tw`text-zinc-500 text-xs`}>暫無圖表數據</Text>
-      </View>
-    );
-  }
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 500,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: 500,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, scale]);
 
   return (
-    <View style={tw`flex-1 bg-zinc-950 p-2`}>
-      <CandlestickChart.Provider data={chartData}>
-        <CandlestickChart height={Dimensions.get('window').height * 0.4}>
-          <CandlestickChart.Candles 
-            positiveColor="#10b981" 
-            negativeColor="#f43f5e" 
-          />
-          <CandlestickChart.Crosshair>
-            <CandlestickChart.Tooltip />
-          </CandlestickChart.Crosshair>
-        </CandlestickChart>
-        
-        <View style={tw`flex-row justify-between mt-4 px-2`}>
-          <View>
-            <CandlestickChart.PriceText type="open" style={tw`text-zinc-400 text-[10px]`} />
-            <CandlestickChart.PriceText type="high" style={tw`text-zinc-400 text-[10px]`} />
-          </View>
-          <View>
-            <CandlestickChart.PriceText type="low" style={tw`text-zinc-400 text-[10px]`} />
-            <CandlestickChart.PriceText type="close" style={tw`text-zinc-100 font-bold text-xs`} />
-          </View>
-          <View>
-             <CandlestickChart.DatetimeText style={tw`text-zinc-500 text-[10px]`} />
-          </View>
+    <Animated.View 
+      style={[
+        styles.container,
+        compact ? styles.p2 : styles.p4,
+        { opacity, transform: [{ scale }] }
+      ]}
+    >
+      <Suspense fallback={
+        <View style={styles.loaderWrapper}>
+          <ActivityIndicator size="small" color="#34d399" />
         </View>
-      </CandlestickChart.Provider>
-    </View>
+      }>
+        <ChartWidget data={data} />
+      </Suspense>
+    </Animated.View>
   );
-}
+});
+
+const styles = StyleSheet.create({
+  container: {
+    borderRadius: 16,
+    flex: 1,
+    height: '100%',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  p2: {
+    padding: 8,
+  },
+  p4: {
+    padding: 16,
+  },
+  errorWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    color: '#fb7185',
+    fontSize: 12,
+  },
+  loaderWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
+});
