@@ -5,7 +5,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 
-// Keep splash visible while assets load
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
