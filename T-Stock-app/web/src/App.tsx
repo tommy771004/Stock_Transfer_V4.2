@@ -6,6 +6,7 @@
  * - TradingCore receives onGoBacktest callback
  * - All keyboard shortcuts intact
  * - FIXED: Added missing searchOpen and searchQ state variables
+ * - NEW: Added androidBackPress event listener for Native back button
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -158,8 +159,24 @@ function MainApp() {
     setTopTab('orders');
   },[setPage, setTopTab]);
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // ── 鍵盤快捷鍵 & Android 實體返回鍵橋接 ────────────────────────────────────────────────────
   useEffect(()=>{
+    // 處理 Android 實體返回鍵 (來自 Native WebView 的 custom event)
+    const handleNativeBack = () => {
+      if (page === 'market') {
+        // 如果已經在首頁，通知 Native 端退出 App
+        if (typeof window !== 'undefined' && (window as any).ReactNativeWebView) {
+          (window as any).ReactNativeWebView.postMessage('EXIT_APP');
+        }
+      } else {
+        // 如果不在首頁，則切回首頁
+        setPage('market');
+        setTopTab('markets');
+      }
+    };
+    window.addEventListener('androidBackPress', handleNativeBack as EventListener);
+
+    // 處理鍵盤快捷鍵
     const h=(e:KeyboardEvent)=>{
       const tag=(e.target as HTMLElement)?.tagName?.toLowerCase();
       if(tag==='input'||tag==='textarea'||tag==='select') return;
@@ -177,8 +194,13 @@ function MainApp() {
       }
     };
     window.addEventListener('keydown',h);
-    return ()=>window.removeEventListener('keydown',h);
-  },[setPage, setTopTab]);
+    
+    // Cleanup
+    return ()=>{
+      window.removeEventListener('keydown',h);
+      window.removeEventListener('androidBackPress', handleNativeBack as EventListener);
+    };
+  },[page, setPage, setTopTab]);
 
   const handleTopTab=(tab:TopTab)=>{setTopTab(tab);const f=NAV.find(n=>n.topTab===tab);if(f)setPage(f.id); if(isMobile) setSidebar(false);};
   const handleNav=(item:typeof NAV[0])=>{setPage(item.id);setTopTab(item.topTab); if(isMobile) setSidebar(false);};
