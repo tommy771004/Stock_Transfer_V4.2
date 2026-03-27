@@ -1,4 +1,5 @@
 import { Position, Trade, BacktestMetrics, BacktestTrade } from '../types';
+import { IS_MOBILE_WEBVIEW } from '../services/api';
 
 /**
  * exportPdf.ts — Browser-native PDF export (no external library)
@@ -21,6 +22,11 @@ export interface PdfSection {
  * In Electron, this triggers the native print-to-PDF flow.
  */
 export function exportPdf(filename: string, sections: PdfSection[], subtitle?: string): void {
+  // window.open() and window.print() are not available in iOS/Android WebView.
+  if (IS_MOBILE_WEBVIEW) {
+    window.alert('PDF 匯出功能僅支援桌面版（Electron）。');
+    return;
+  }
   const content = sections.map(s => `
     <section class="section">
       <h2>${escapeHtml(s.title)}</h2>

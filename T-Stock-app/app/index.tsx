@@ -23,6 +23,7 @@ import {
   Animated,
   BackHandler,
   Dimensions,
+  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -305,7 +306,16 @@ export default function MainScreen() {
             setStatus('error');
           }}
           onMessage={e => {
-            if (e.nativeEvent.data === 'EXIT_APP') BackHandler.exitApp();
+            const raw = e.nativeEvent.data;
+            if (raw === 'EXIT_APP') { BackHandler.exitApp(); return; }
+            try {
+              const msg = JSON.parse(raw) as { type?: string; url?: string };
+              if (msg.type === 'OPEN_URL' && msg.url) {
+                void Linking.openURL(msg.url);
+              }
+            } catch {
+              // plain-string messages (e.g. 'EXIT_APP' already handled above)
+            }
           }}
           // ── Mobile UX ──
           bounces={false}

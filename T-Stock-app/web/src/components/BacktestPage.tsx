@@ -18,7 +18,7 @@ import {
   Settings, Activity, ArrowDownRight, Target, FileText,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { runBacktest } from '../services/api';
+import { runBacktest, IS_MOBILE_WEBVIEW } from '../services/api';
 import { BacktestResult, BacktestMetrics } from '../types';
 import { motion } from 'motion/react';
 import { buildBacktestPdf } from '../utils/exportPdf';
@@ -194,6 +194,10 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
 
   const exportCSV = () => {
     if (!result?.trades?.length) return;
+    if (IS_MOBILE_WEBVIEW) {
+      window.alert('匯出功能僅支援桌面版（Electron）。');
+      return;
+    }
     const header='進場日期,出場日期,進場價,出場價,股數,持有天數,損益%,損益金額,結果';
     const rows=result.trades.map((t)=>`${t.entryTime},${t.exitTime},${t.entryPrice},${t.exitPrice},${t.amount},${t.holdDays},${t.pnlPct}%,${t.pnl},${t.result==='WIN'?'獲利':'虧損'}`);
     const a=document.createElement('a');
@@ -605,8 +609,8 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
                         tickFormatter={v=>`${v>=0?'+':''}${v}%`} domain={['auto', 'auto']}/>
                       <Tooltip content={<EquityTip color={resultStrat.color}/>}/>
                       <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3"/>
-                      <Area type="monotone" dataKey="benchmark" name="benchmark" stroke="#64748b" strokeWidth={2} strokeOpacity={0.5} fill={`url(#gBench_${chartKey})`} dot={false} animationDuration={1500} connectNulls={true} />
-                      <Area type="monotone" dataKey="portfolio" name="portfolio" stroke={resultStrat.color} strokeWidth={4} fillOpacity={1} fill={`url(#gStrat_${chartKey})`} dot={false} animationDuration={2000} connectNulls={true} />
+                      <Area type="monotone" dataKey="benchmark" name="benchmark" stroke="#64748b" strokeWidth={2} strokeOpacity={0.5} fill={`url(#gBench_${chartKey})`} dot={false} isAnimationActive={false} connectNulls={true} />
+                      <Area type="monotone" dataKey="portfolio" name="portfolio" stroke={resultStrat.color} strokeWidth={4} fillOpacity={1} fill={`url(#gStrat_${chartKey})`} dot={false} isAnimationActive={false} connectNulls={true} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -630,7 +634,7 @@ export default function BacktestPage({ initialSymbol }: { initialSymbol?: string
                           <YAxis hide domain={[0,'auto']} reversed/>
                           <Tooltip content={<DdTip/>}/>
                           <Area type="monotone" dataKey="dd" stroke="#fb7185" strokeWidth={2}
-                            fill={`url(#gDD_${chartKey})`} dot={false} animationDuration={1000}/>
+                            fill={`url(#gDD_${chartKey})`} dot={false} isAnimationActive={false}/>
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>

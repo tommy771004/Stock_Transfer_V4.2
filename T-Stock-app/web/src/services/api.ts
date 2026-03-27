@@ -363,7 +363,13 @@ export const runScreener = (symbols: string[], filters?: ScreenerFilters): Promi
 
 // ── Misc ──────────────────────────────────────────────────────────────────────
 export const openExternal  = (url: string): void => {
-  if (IS_ELECTRON) E().openExternal(url);
-  else window.open(url, '_blank', 'noopener');
+  if (IS_ELECTRON) { E().openExternal(url); return; }
+  // In mobile WebView, window.open() navigates the WebView itself.
+  // Post to native so the host app can open the URL in the system browser.
+  if (IS_MOBILE_WEBVIEW) {
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'OPEN_URL', url }));
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
 };
 
