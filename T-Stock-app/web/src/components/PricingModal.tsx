@@ -1,195 +1,390 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, CheckCircle2, Zap, BrainCircuit, ShieldCheck } from 'lucide-react';
-import { useSubscription, SubscriptionTier } from '../contexts/SubscriptionContext';
-import { cn } from '../lib/utils';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, Animated, Easing, Platform } from 'react-native';
+import { Loader2, RefreshCw, TrendingUp, TrendingDown, X } from 'lucide-react-native';
+import { safeN } from '../utils/helpers';
+import { useSettings } from '../contexts/SettingsContext';
+import { TWSEData } from '../types';
 
-export default function PricingModal() {
-  const { isUpgradeModalOpen, closeUpgradeModal, tier, setTier } = useSubscription();
+interface PriceBarProps {
+  symbol: string;
+  twse: TWSEData | null;
+  loading: boolean;
+  price: number | null;
+  isUp: boolean;
+  change: number | null;
+  pct: number | null;
+  high: number | null;
+  low: number | null;
+  vol: number | null;
+  focusMode: boolean;
+  setFocusMode: (v: boolean) => void;
+  onSetAlert: (symbol: string, price: number) => void;
+  loadData: () => void;
+}
 
- 
+export const PriceBar: React.FC<PriceBarProps> = React.memo(
+  ({ symbol, twse, loading, price, isUp, change, pct, high, low, vol, focusMode, setFocusMode, onSetAlert, loadData }) => {
+    const { settings } = useSettings();
+    const compact = settings.compactMode;
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [alertVal, setAlertVal] = useState('');
+    const alertInputRef = useRef<TextInput>(null);
+    const modalAnim = useRef(new Animated.Value(0)).current;
 
-  const handleSubscribe = (newTier: SubscriptionTier) => {
-    setTier(newTier);
-    closeUpgradeModal();
-  };
+    useEffect(() => {
+      if (alertOpen) {
+        requestAnimationFrame(() => alertInputRef.current?.focus?.());
+        Animated.timing(modalAnim, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }).start();
+      } else {
+        modalAnim.setValue(0);
+      }
+    }, [alertOpen, modalAnim]);
 
-  return (
-    <AnimatePresence>
-      {isUpgradeModalOpen && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/80 backdrop-blur-md"
-          onClick={closeUpgradeModal}
-        />
-        
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-5xl bg-[var(--bg-color)] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-        >
-          {/* Header */}
-          <div className="p-6 md:p-8 text-center relative shrink-0 border-b border-[var(--border-color)]">
-            <button 
-              onClick={closeUpgradeModal}
-              className="absolute top-6 right-6 p-2 rounded-full bg-[var(--bg-color)] hover:bg-[var(--border-color)] text-zinc-500 hover:text-[var(--text-color)] transition-colors"
+    const handleAlertSubmit = () => {
+      const target = parseFloat(alertVal);
+      if (!isNaN(target) && target > 0) {
+        onSetAlert(symbol, target);
+        setAlertOpen(false);
+        setAlertVal('');
+      }
+    };
+
+    return (
+      <>
+        <View style={[styles.card, compact ? styles.cardCompact : styles.cardRegular]}>
+          <View style={[styles.leftRow, compact ? styles.gapSm : styles.gapMd]}>
+            <Text style={[styles.symbol, compact ? styles.symbolCompact : styles.symbolRegular]}>{symbol}</Text>
+            {twse && <Text style={[styles.badge, compact ? styles.badgeCompact : styles.badgeRegular]}>TWSE</Text>}
+
+            {loading ? (
+              <View style={styles.inlineRow}>
+                <View style={[styles.pulse, compact ? styles.pulsePriceCompact : styles.pulsePriceRegular]} />
+                <Loader2 size={compact ? 16 : 20} color="rgba(255,255,255,0.5)" />
+              </View>
+            ) : price != null ? (
+              <View style={styles.inlineRow}>
+                <Text style={[styles.price, compact ? styles.priceCompact : styles.priceRegular, isUp ? styles.up : styles.down]}>{safeN(price)}</Text>
+                {isUp ? <TrendingUp size={compact ? 16 : 18} color="#34d399" /> : <TrendingDown size={compact ? 16 : 18} color="#fb7185" />}
+              </View>
+            ) : null}
+
+            {!loading && change != null && (
+              <Text style={[styles.change, compact ? styles.changeCompact : styles.changeRegular, isUp ? styles.up : styles.down]}>
+                {isUp ? '+' : ''}
+                {safeN(change)} ({isUp ? '+' : ''}
+                {safeN(pct)}%)
+              </Text>
+            )}
+
+            {loading && <View style={[styles.pulse, compact ? styles.pulseChangeCompact : styles.pulseChangeRegular]} />}
+          </View>
+
+          <View style={[styles.rightRow, compact ? styles.gapSm : styles.gapMd]}>
+            {high != null && (
+              <Text style={[styles.metaText, compact ? styles.metaCompact : styles.metaRegular]}>
+                高 <Text style={styles.up}>{safeN(high)}</Text>
+              </Text>
+            )}
+            {low != null && (
+              <Text style={[styles.metaText, compact ? styles.metaCompact : styles.metaRegular]}>
+                低 <Text style={styles.down}>{safeN(low)}</Text>
+              </Text>
+            )}
+            {vol != null && !isNaN(Number(vol)) && (
+              <Text style={[styles.metaText, compact ? styles.metaCompact : styles.metaRegular]}>
+                量 <Text style={styles.metaValue}>
+                  {Number(vol) >= 1e6 ? `${(Number(vol) / 1e6).toFixed(1)}M` : Number(vol).toLocaleString()}
+                </Text>
+              </Text>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setFocusMode(!focusMode)}
+              accessibilityLabel="專注模式"
+              accessibilityState={{ pressed: focusMode }}
+              style={[styles.actionBtn, compact ? styles.actionBtnCompact : styles.actionBtnRegular, focusMode ? styles.focusActive : styles.focusInactive]}
+              activeOpacity={0.8}
             >
-              <X size={20} />
-            </button>
-            <h2 className="text-2xl md:text-3xl font-black text-[var(--text-color)] mb-2 tracking-tight">
-              解鎖 <span className="text-emerald-400">Quantum AI</span> 的完整潛力
-            </h2>
-            <p className="text-zinc-500 text-sm md:text-base max-w-xl mx-auto">
-              選擇適合您的交易武器，透過頂尖 AI 模型掌握市場先機。
-            </p>
-          </div>
+              <Text style={[styles.actionText, focusMode ? styles.focusTextActive : styles.focusTextInactive]}>✨ 專注</Text>
+            </TouchableOpacity>
 
-          {/* Pricing Cards */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* Free Tier */}
-              <div className={cn(
-                "relative rounded-3xl p-6 border flex flex-col",
-                tier === SubscriptionTier.FREE ? "bg-[var(--bg-color)] border-[var(--border-color)]" : "bg-[var(--card-bg)] border-[var(--border-color)]"
-              )}>
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-[var(--text-color)] mb-2">基礎版 (Free)</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-[var(--text-color)]">$0</span>
-                    <span className="text-zinc-500 text-sm">/ 月</span>
-                  </div>
-                  <p className="text-sm text-zinc-500 mt-2">適合剛開始接觸量化交易的新手</p>
-                </div>
-                
-                <div className="flex-1 space-y-4 mb-8">
-                  <FeatureItem text="即時市場報價與五檔" />
-                  <FeatureItem text="基礎技術指標 (RSI, MACD)" />
-                  <FeatureItem text="自選股與投資組合追蹤" />
-                  <FeatureItem text="AI 分析功能" disabled />
-                  <FeatureItem text="進階策略回測" disabled />
-                </div>
+            <TouchableOpacity
+              onPress={() => {
+                setAlertVal(String(price ?? ''));
+                setAlertOpen(true);
+              }}
+              accessibilityLabel="設定價格警示"
+              style={[styles.actionBtn, compact ? styles.actionBtnCompact : styles.actionBtnRegular, styles.actionBtnMuted]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionTextMuted}>🔔 警示</Text>
+            </TouchableOpacity>
 
-                <button 
-                  disabled={tier === SubscriptionTier.FREE}
-                  onClick={() => handleSubscribe(SubscriptionTier.FREE)}
-                  className={cn(
-                    "w-full py-3 rounded-xl font-bold transition-all",
-                    tier === SubscriptionTier.FREE ? "bg-[var(--border-color)] text-[var(--text-color)] cursor-default" : "bg-[var(--bg-color)] text-[var(--text-color)] opacity-70 hover:bg-[var(--border-color)]"
-                  )}
-                >
-                  {tier === SubscriptionTier.FREE ? '目前方案' : '降級至基礎版'}
-                </button>
-              </div>
+            <TouchableOpacity
+              onPress={loadData}
+              disabled={loading}
+              accessibilityLabel="重新載入資料"
+              style={[styles.actionBtn, compact ? styles.actionBtnCompact : styles.actionBtnRegular, styles.actionBtnMuted, loading && styles.disabled]}
+              activeOpacity={0.8}
+            >
+              <RefreshCw size={compact ? 12 : 14} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-              {/* Basic Tier */}
-              <div className={cn(
-                "relative rounded-3xl p-6 border flex flex-col",
-                tier === SubscriptionTier.BASIC ? "bg-emerald-500/10 border-emerald-500/30" : "bg-[var(--card-bg)] border-[var(--border-color)] hover:border-emerald-500/20 transition-colors"
-              )}>
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                  最受歡迎
-                </div>
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-emerald-400 mb-2 flex items-center gap-2">
-                    <Zap size={20} /> 簡易模型
-                  </h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-[var(--text-color)]">$199</span>
-                    <span className="text-zinc-500 text-sm">/ 月</span>
-                  </div>
-                  <p className="text-sm text-zinc-500 mt-2">解鎖 AI 趨勢評估與基本買賣建議</p>
-                </div>
-                
-                <div className="flex-1 space-y-4 mb-8">
-                  <FeatureItem text="包含基礎版所有功能" />
-                  <FeatureItem text="AI 趨勢評估 (Trend Assessment)" highlight />
-                  <FeatureItem text="基本買賣訊號提示" highlight />
-                  <FeatureItem text="每日 50 次 AI 查詢額度" />
-                  <FeatureItem text="深入推理與目標價預測" disabled />
-                </div>
+        <Modal visible={alertOpen} transparent animationType="none" onRequestClose={() => setAlertOpen(false)}>
+          <View style={styles.backdrop}>
+            <Animated.View
+              style={[
+                styles.modalCard,
+                {
+                  opacity: modalAnim,
+                  transform: [
+                    {
+                      scale: modalAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.95, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>設定價格警示</Text>
+                <TouchableOpacity onPress={() => setAlertOpen(false)} style={styles.closeBtn} accessibilityLabel="關閉" activeOpacity={0.8}>
+                  <X size={16} color="#a1a1aa" />
+                </TouchableOpacity>
+              </View>
 
-                <button 
-                  disabled={tier === SubscriptionTier.BASIC}
-                  onClick={() => handleSubscribe(SubscriptionTier.BASIC)}
-                  className={cn(
-                    "w-full py-3 rounded-xl font-bold transition-all",
-                    tier === SubscriptionTier.BASIC 
-                      ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
-                      : "bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.3)]"
-                  )}
-                >
-                  {tier === SubscriptionTier.BASIC ? '目前方案' : '升級簡易模型'}
-                </button>
-              </div>
+              <Text style={styles.modalSubText}>
+                {symbol} · 當前價格: {safeN(price)}
+              </Text>
 
-              {/* Pro Tier */}
-              <div className={cn(
-                "relative rounded-3xl p-6 border flex flex-col",
-                tier === SubscriptionTier.PRO ? "bg-indigo-500/10 border-indigo-500/30" : "bg-[var(--card-bg)] border-[var(--border-color)] hover:border-indigo-500/20 transition-colors"
-              )}>
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-indigo-400 mb-2 flex items-center gap-2">
-                    <BrainCircuit size={20} /> 深入分析模型
-                  </h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-[var(--text-color)]">$799</span>
-                    <span className="text-zinc-500 text-sm">/ 月</span>
-                  </div>
-                  <p className="text-sm text-zinc-500 mt-2">專為專業交易員打造的完整 AI 引擎</p>
-                </div>
-                
-                <div className="flex-1 space-y-4 mb-8">
-                  <FeatureItem text="包含簡易模型所有功能" />
-                  <FeatureItem text="AI 交易策略分析與推理邏輯" highlight color="indigo" />
-                  <FeatureItem text="精準目標價與停損價預測" highlight color="indigo" />
-                  <FeatureItem text="市場情緒深度解析" highlight color="indigo" />
-                  <FeatureItem text="無限制 AI 查詢額度" />
-                </div>
+              <Text style={styles.modalLabel}>目標價格</Text>
+              <TextInput
+                ref={alertInputRef}
+                value={alertVal}
+                onChangeText={setAlertVal}
+                onSubmitEditing={handleAlertSubmit}
+                placeholder="輸入目標價格"
+                placeholderTextColor="#71717a"
+                keyboardType="numeric"
+                returnKeyType="done"
+                style={styles.input}
+              />
 
-                <button 
-                  disabled={tier === SubscriptionTier.PRO}
-                  onClick={() => handleSubscribe(SubscriptionTier.PRO)}
-                  className={cn(
-                    "w-full py-3 rounded-xl font-bold transition-all",
-                    tier === SubscriptionTier.PRO 
-                      ? "bg-indigo-500/20 text-indigo-400 cursor-default" 
-                      : "bg-indigo-500 text-[var(--text-color)] hover:bg-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.3)]"
-                  )}
-                >
-                  {tier === SubscriptionTier.PRO ? '目前方案' : '升級深入分析'}
-                </button>
-              </div>
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={() => setAlertOpen(false)} style={[styles.modalBtn, styles.cancelBtn]} activeOpacity={0.85}>
+                  <Text style={styles.cancelBtnText}>取消</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleAlertSubmit} style={[styles.modalBtn, styles.confirmBtn]} activeOpacity={0.85}>
+                  <Text style={styles.confirmBtnText}>確認設定</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </View>
+        </Modal>
+      </>
+    );
+  }
+);
 
-            </div>
-          </div>
-          
-          {/* Footer */}
-          <div className="p-4 border-t border-[var(--border-color)] text-center shrink-0">
-            <p className="text-xs text-zinc-500 flex items-center justify-center gap-1">
-              <ShieldCheck size={14} /> 支援 iOS / Android 跨平台訂閱同步 (即將推出)
-            </p>
-          </div>
-        </motion.div>
-      </div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function FeatureItem({ text, disabled = false, highlight = false, color = 'emerald' }: { text: string, disabled?: boolean, highlight?: boolean, color?: 'emerald' | 'indigo' }) {
-  return (
-    <div className={cn("flex items-start gap-3 text-sm", disabled ? "opacity-40" : "")}>
-      {disabled ? (
-        <X size={18} className="text-zinc-500 shrink-0 mt-0.5" />
-      ) : (
-        <CheckCircle2 size={18} className={cn("shrink-0 mt-0.5", highlight ? (color === 'indigo' ? 'text-indigo-400' : 'text-emerald-400') : "text-zinc-500")} />
-      )}
-      <span className={cn(highlight ? "text-[var(--text-color)] font-medium" : "text-[var(--text-color)] opacity-70")}>{text}</span>
-    </div>
-  );
-}
+const styles = StyleSheet.create({
+  card: {
+    alignSelf: 'stretch',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(18,18,24,0.88)',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+  cardCompact: {
+    padding: 8,
+    gap: 8,
+  },
+  cardRegular: {
+    padding: 12,
+    gap: 8,
+  },
+  leftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  rightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  gapSm: { gap: 8 },
+  gapMd: { gap: 16 },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  symbol: {
+    fontWeight: '900',
+    color: '#f4f4f5',
+  },
+  symbolCompact: { fontSize: 18 },
+  symbolRegular: { fontSize: 24 },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    backgroundColor: 'rgba(16,185,129,0.2)',
+    color: '#34d399',
+    overflow: 'hidden',
+  },
+  badgeCompact: { fontSize: 11 },
+  badgeRegular: { fontSize: 12 },
+  price: {
+    fontWeight: '900',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  },
+  priceCompact: { fontSize: 20 },
+  priceRegular: { fontSize: 28 },
+  change: {
+    fontWeight: '700',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  },
+  changeCompact: { fontSize: 12 },
+  changeRegular: { fontSize: 14 },
+  up: { color: '#34d399' },
+  down: { color: '#fb7185' },
+  pulse: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 6,
+  },
+  pulsePriceCompact: { width: 64, height: 24 },
+  pulsePriceRegular: { width: 96, height: 32 },
+  pulseChangeCompact: { width: 80, height: 16 },
+  pulseChangeRegular: { width: 112, height: 20 },
+  metaText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  },
+  metaCompact: { fontSize: 11 },
+  metaRegular: { fontSize: 13 },
+  metaValue: { color: '#f4f4f5' },
+  actionBtn: {
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnCompact: { padding: 4 },
+  actionBtnRegular: { padding: 6 },
+  actionBtnMuted: { opacity: 0.6 },
+  actionText: {
+    fontSize: 12,
+    color: '#f4f4f5',
+  },
+  actionTextMuted: {
+    fontSize: 12,
+    color: '#f4f4f5',
+    opacity: 0.6,
+  },
+  focusActive: {
+    backgroundColor: 'rgba(16,185,129,0.2)',
+  },
+  focusInactive: {
+    backgroundColor: 'transparent',
+  },
+  focusTextActive: { color: '#34d399' },
+  focusTextInactive: { color: '#f4f4f5' },
+  disabled: {
+    opacity: 0.5,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#f4f4f5',
+  },
+  closeBtn: {
+    padding: 4,
+    borderRadius: 8,
+  },
+  modalSubText: {
+    fontSize: 12,
+    color: '#71717a',
+    marginBottom: 12,
+  },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#a1a1aa',
+    marginBottom: 4,
+  },
+  input: {
+    width: '100%',
+    backgroundColor: '#18181b',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#f4f4f5',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    marginBottom: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  confirmBtn: {
+    backgroundColor: '#10b981',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#f4f4f5',
+    opacity: 0.7,
+  },
+  confirmBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000000',
+  },
+});
