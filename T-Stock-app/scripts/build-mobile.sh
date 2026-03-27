@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"      # T-Stock-app/
+EXPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"       # T-Stock-app/
 WEB_DIR="$EXPO_DIR/web"                        # T-Stock-app/web/
 ASSETS_WEB="$EXPO_DIR/assets/web"
 
@@ -29,10 +29,20 @@ if [ ! -d "$WEB_DIR/node_modules" ]; then
 fi
 
 # ── 2. Build Vite single-bundle ──────────────────────────────────────────────
-echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
+echo "▶ Cleaning old web assets to prevent ghost files..."
+# 確保每次打包前清空舊檔案，避免殘留
+rm -rf "$ASSETS_WEB"
 mkdir -p "$ASSETS_WEB"
+
+echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 cd "$WEB_DIR"
 npm run build:mobile
+
+# 確認 index.html 是否成功生成
+if [ ! -f "$ASSETS_WEB/index.html" ]; then
+  echo "❌ Error: index.html was not generated in $ASSETS_WEB"
+  exit 1
+fi
 
 SIZE=$(du -sh "$ASSETS_WEB/index.html" | cut -f1)
 echo "  ✓ assets/web/index.html  ($SIZE)"
