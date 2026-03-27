@@ -8,25 +8,38 @@
  * Usage:
  *   npm run build:mobile
  *   # → T-Stock-app/assets/web/index.html  (~1.5 MB)
+ *
+ * Mobile-specific overrides vs desktop build:
+ *   • @monaco-editor/react → src/stubs/monaco-stub.tsx
+ *       Monaco editor is ~5–8 MB when bundled. The stub replaces it with a
+ *       plain <textarea> so the IPA/APK asset stays small.
+ *   • VITE_OPENROUTER_API_KEY → always empty string
+ *       Never embed API keys in a mobile binary (apktool/otool can extract
+ *       them). Users enter their key via the in-app Settings UI instead.
  */
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
-
+export default defineConfig(() => {
   return {
     base: './',
     root: '.',
     publicDir: 'public',
     plugins: [react(), tailwindcss(), inlinePlugin()],
     define: {
-      'process.env.VITE_OPENROUTER_API_KEY': JSON.stringify(env.VITE_OPENROUTER_API_KEY ?? ''),
+      // Never expose API keys in the mobile bundle — users provide their own
+      // key through the in-app Settings UI (stored in localStorage via api.setSetting).
+      'process.env.VITE_OPENROUTER_API_KEY': JSON.stringify(''),
     },
     resolve: {
-      alias: { '@': path.resolve(__dirname, '.') },
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+        // Swap Monaco editor for a lightweight textarea stub to avoid bundling
+        // ~5–8 MB of editor JS into the Expo asset.
+        '@monaco-editor/react': path.resolve(__dirname, 'src/stubs/monaco-stub.tsx'),
+      },
     },
     optimizeDeps: {
       exclude: ['electron'],

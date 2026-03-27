@@ -49,6 +49,12 @@ const APP_VERSION =
  * Leave empty string for production (bundled HTML).
  *
  * Example: const DEV_SERVER_URL = 'http://192.168.1.10:5173';
+ *
+ * iOS LAN IP note:
+ *   NSAllowsLocalNetworking covers localhost/127.0.0.1 only.
+ *   For a LAN IP dev server on an iOS physical device, either:
+ *     a) Add the IP to app.json > ios.infoPlist.NSAppTransportSecurity.NSExceptionDomains
+ *     b) Use Expo Tunnel: `npx expo start --tunnel` (no ATS change needed)
  */
 const DEV_SERVER_URL = '';
 const IS_DEV = __DEV__ && DEV_SERVER_URL !== '';
