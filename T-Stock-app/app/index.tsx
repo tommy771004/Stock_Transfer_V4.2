@@ -164,17 +164,22 @@ export default function MainScreen() {
   }, [retryCount]);
 
   // ── Android hardware back button ───────────────────────────────────────────
+  // Dispatch 'androidBackPress' into the web SPA so it can handle in-app
+  // back navigation. When the web app is at the root page it responds by
+  // posting 'EXIT_APP', handled by onMessage → BackHandler.exitApp().
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (canGoBack && webRef.current) {
-        webRef.current.goBack();
-        return true;
+      if (webRef.current) {
+        webRef.current.injectJavaScript(
+          "window.dispatchEvent(new Event('androidBackPress')); true;"
+        );
+        return true; // consumed — web app decides whether to exit
       }
       return false;
     });
     return () => sub.remove();
-  }, [canGoBack]);
+  }, []);
 
   const onNavChange = useCallback((nav: WebViewNavigation) => {
     setCanGoBack(nav.canGoBack);
@@ -305,6 +310,9 @@ export default function MainScreen() {
             setStatus('error');
           }}
           onNavigationStateChange={onNavChange}
+          onMessage={e => {
+            if (e.nativeEvent.data === 'EXIT_APP') BackHandler.exitApp();
+          }}
           // ── Mobile UX ──
           bounces={false}
           overScrollMode="never"
