@@ -285,9 +285,13 @@ export default function MainScreen() {
           injectedJavaScript={POST_INJECTED_JS}
           // ── Events ──
           onLoadStart={e => {
-            // Suppress spinner for SPA hash/history navigation — only show
-            // loading overlay for a full page (re)load.
-            if (e.nativeEvent.navigationType === 'other') setStatus('loading');
+            // Show overlay only for initial document load ('other') or an
+            // explicit reload() call ('reload'). SPA pushState/hash navigation
+            // stays in-page and never fires onLoadStart, so no guard needed.
+            const { navigationType } = e.nativeEvent;
+            if (navigationType === 'other' || navigationType === 'reload') {
+              setStatus('loading');
+            }
           }}
           onLoadEnd={onLoadEnd}
           onError={e => {
