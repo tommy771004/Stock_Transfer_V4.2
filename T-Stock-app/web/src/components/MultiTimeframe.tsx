@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Activity, TrendingUp, TrendingDown, Minus, Clock, Loader2, AlertCircle } from 'lucide-react';
-import { cn } from '../lib/utils';
+import {
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Clock,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react-native';
+import { View, Text, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
 import { analyzeMTF } from '../services/aiService';
 import * as api from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
@@ -19,18 +27,25 @@ type MTFStatus =
   | { phase: 'error'; message: string }
   | { phase: 'ready'; result: MTFResult };
 
-export default function MultiTimeframe({ model, symbol }: { model: string, symbol: string }) {
+export default function MultiTimeframe({ model, symbol }: { model: string; symbol: string }) {
   const { settings } = useSettings();
   const [status, setStatus] = useState<MTFStatus>({ phase: 'loading' });
   const [data, setData] = useState<MTFData | null>(null);
   const mountedRef = useRef(true);
-  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     const fetchData = async () => {
       try {
         setStatus({ phase: 'loading' });
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const period1_1h = thirtyDaysAgo.toISOString().split('T')[0];
@@ -43,10 +58,9 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
         threeYearsAgo.setDate(threeYearsAgo.getDate() - 365 * 3);
         const period1_1wk = threeYearsAgo.toISOString().split('T')[0];
 
-        // Fetch data for 1h, 1d, 1wk — via api.getHistory() so _mobileApiBase is respected
         const [data1h, data1d, data1wk] = await Promise.all([
-          api.getHistory(symbol, { interval: '1h',  period1: period1_1h }),
-          api.getHistory(symbol, { interval: '1d',  period1: period1_1d }),
+          api.getHistory(symbol, { interval: '1h', period1: period1_1h }),
+          api.getHistory(symbol, { interval: '1d', period1: period1_1d }),
           api.getHistory(symbol, { interval: '1wk', period1: period1_1wk }),
         ]);
 
@@ -54,14 +68,20 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
           setData({ data1h, data1d, data1wk });
         }
       } catch (error) {
-        console.error("Error fetching MTF data:", error);
-        if (!cancelled && mountedRef.current)
-          setStatus({ phase: 'error', message: error instanceof Error ? error.message : '資料載入失敗' });
+        console.error('Error fetching MTF data:', error);
+        if (!cancelled && mountedRef.current) {
+          setStatus({
+            phase: 'error',
+            message: error instanceof Error ? error.message : '資料載入失敗',
+          });
+        }
       }
     };
 
     fetchData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [symbol]);
 
   useEffect(() => {
@@ -70,115 +90,383 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
       if (!data) return;
       try {
         setStatus({ phase: 'loading' });
-        const result = await analyzeMTF(symbol, data.data1h, data.data1d, data.data1wk, model, String(settings.systemInstruction || ''));
+        const result = await analyzeMTF(
+          symbol,
+          data.data1h,
+          data.data1d,
+          data.data1wk,
+          model,
+          String(settings.systemInstruction || '')
+        );
         if (!cancelled && mountedRef.current) {
           if (result) setStatus({ phase: 'ready', result });
           else setStatus({ phase: 'error', message: 'AI 回傳空結果，請檢查 API Key 設定' });
         }
       } catch (error) {
-        console.error("Error analyzing MTF data:", error);
-        if (!cancelled && mountedRef.current)
-          setStatus({ phase: 'error', message: error instanceof Error ? error.message : 'AI 分析失敗' });
+        console.error('Error analyzing MTF data:', error);
+        if (!cancelled && mountedRef.current) {
+          setStatus({
+            phase: 'error',
+            message: error instanceof Error ? error.message : 'AI 分析失敗',
+          });
+        }
       }
     };
 
     runAnalysis();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [data, model, symbol, settings.systemInstruction]);
 
   return (
-    <div className="h-full pb-10 flex flex-col gap-6">
-      <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] rounded-3xl p-8 relative overflow-hidden flex-1">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-        
-        <div className="flex items-center gap-3 mb-8 relative z-10">
-          <div className="w-12 h-12 rounded-2xl bg-white/[0.05] flex items-center justify-center border border-white/[0.1] shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
-            <Clock className="w-6 h-6 text-indigo-300 drop-shadow-[0_0_8px_rgba(165,180,252,0.6)]" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white/90 drop-shadow-md">多時區分析矩陣 (MTF Matrix)</h2>
-            <p className="text-sm text-white/50">跨週期趨勢共振掃描，尋找高勝率交易機會</p>
-          </div>
-        </div>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.card}>
+          <View style={styles.header}>
+            <View style={styles.iconWrap}>
+              <Clock size={24} color="#c4b5fd" />
+            </View>
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.title}>多時區分析矩陣 (MTF Matrix)</Text>
+              <Text style={styles.subtitle}>跨週期趨勢共振掃描，尋找高勝率交易機會</Text>
+            </View>
+          </View>
 
-        {status.phase === 'loading' ? (
-          <div className="flex flex-col items-center justify-center h-64 space-y-4 relative z-10">
-            <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-            <p className="text-white/60">AI 正在進行多時區共振分析...</p>
-          </div>
-        ) : status.phase === 'error' ? (
-          <div className="flex flex-col items-center justify-center h-64 space-y-3 relative z-10">
-            <AlertCircle className="w-10 h-10 text-rose-400" />
-            <p className="text-rose-400 font-semibold">載入失敗</p>
-            <p className="text-white/40 text-sm text-center max-w-xs">{status.message}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto relative z-10">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr>
-                    <th className="p-4 border-b border-white/[0.08] text-white/50 font-medium w-1/4">指標 (Indicator)</th>
+          {status.phase === 'loading' ? (
+            <View style={styles.loadingWrap}>
+              <Loader2 size={40} color="#818cf8" />
+              <Text style={styles.loadingText}>AI 正在進行多時區共振分析...</Text>
+            </View>
+          ) : status.phase === 'error' ? (
+            <View style={styles.errorWrap}>
+              <AlertCircle size={40} color="#fb7185" />
+              <Text style={styles.errorTitle}>載入失敗</Text>
+              <Text style={styles.errorMessage}>{status.message}</Text>
+            </View>
+          ) : (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableScroll}>
+                <View style={styles.table}>
+                  <View style={styles.tableHeader}>
+                    <Text style={[styles.th, styles.indicatorHeader]}>指標 (Indicator)</Text>
                     {timeframes.map((tf, i) => (
-                      <th key={i} className="p-4 border-b border-white/[0.08] text-white/70 font-semibold text-center w-1/4">{tf}</th>
+                      <Text key={i} style={[styles.th, styles.timeframeHeader]}>
+                        {tf}
+                      </Text>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </View>
+
                   {status.result.indicators.map((ind, i: number) => (
-                    <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                      <td className="p-4 text-white/80 font-medium">{ind.name}</td>
+                    <View key={i} style={styles.tableRow}>
+                      <Text style={[styles.td, styles.indicatorCell]}>{ind.name}</Text>
                       {ind.values.map((val: string, j: number) => {
-                        const badgeStatus = (ind.statuses?.[j] ?? val) as 'bullish' | 'bearish' | 'neutral';
+                        const badgeStatus = (ind.statuses?.[j] ?? val) as
+                          | 'bullish'
+                          | 'bearish'
+                          | 'neutral';
                         return (
-                          <td key={j} className="p-4 text-center">
+                          <View key={j} style={[styles.td, styles.badgeCell]}>
                             <StatusBadge value={val} status={badgeStatus} />
-                          </td>
+                          </View>
                         );
                       })}
-                    </tr>
+                    </View>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </View>
+              </ScrollView>
 
-            <div className="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl relative z-10 backdrop-blur-md">
-              <h4 className="text-indigo-300 font-semibold mb-2 flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                AI 綜合評估 (AI Synthesis)
-              </h4>
-              <p className="text-white/80 text-sm leading-relaxed">
-                {status.result.synthesis}
-                <br /><br />
-                整體共振分數：
-                <strong className={cn(
-                  "ml-1",
-                  status.result.score >= 70 ? "text-emerald-400" : status.result.score <= 30 ? "text-rose-400" : "text-amber-400"
-                )}>
-                  {status.result.score}/100 ({status.result.overallTrend})
-                </strong>
-              </p>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+              <View style={styles.synthesisBox}>
+                <View style={styles.synthesisTitleRow}>
+                  <Activity size={20} color="#a5b4fc" />
+                  <Text style={styles.synthesisTitle}>AI 綜合評估 (AI Synthesis)</Text>
+                </View>
+                <Text style={styles.synthesisText}>
+                  {status.result.synthesis}
+                  {'\n\n'}
+                  整體共振分數：
+                  <Text
+                    style={[
+                      styles.scoreText,
+                      status.result.score >= 70
+                        ? styles.scoreBullish
+                        : status.result.score <= 30
+                        ? styles.scoreBearish
+                        : styles.scoreNeutral,
+                    ]}
+                  >
+                    {` ${status.result.score}/100 (${status.result.overallTrend})`}
+                  </Text>
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-function StatusBadge({ value, status }: { value: string, status: 'bullish' | 'bearish' | 'neutral' }) {
-  if (value === 'bullish') return <div className="mx-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400"><TrendingUp className="w-4 h-4" /></div>;
-  if (value === 'bearish') return <div className="mx-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-500/20 text-rose-400"><TrendingDown className="w-4 h-4" /></div>;
-  if (value === 'neutral') return <div className="mx-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/20 text-amber-400"><Minus className="w-4 h-4" /></div>;
+function StatusBadge({
+  value,
+  status,
+}: {
+  value: string;
+  status: 'bullish' | 'bearish' | 'neutral';
+}) {
+  if (value === 'bullish') {
+    return (
+      <View style={styles.badgeIconBullish}>
+        <TrendingUp size={16} color="#34d399" />
+      </View>
+    );
+  }
+  if (value === 'bearish') {
+    return (
+      <View style={styles.badgeIconBearish}>
+        <TrendingDown size={16} color="#fb7185" />
+      </View>
+    );
+  }
+  if (value === 'neutral') {
+    return (
+      <View style={styles.badgeIconNeutral}>
+        <Minus size={16} color="#fbbf24" />
+      </View>
+    );
+  }
 
   return (
-    <span className={cn(
-      "px-3 py-1.5 rounded-xl text-sm font-semibold shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]",
-      status === 'bullish' && "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20",
-      status === 'bearish' && "bg-rose-500/10 text-rose-300 border border-rose-500/20",
-      status === 'neutral' && "bg-amber-500/10 text-amber-300 border border-amber-500/20"
-    )}>
-      {value}
-    </span>
+    <View
+      style={[
+        styles.badgeTextBase,
+        status === 'bullish' && styles.badgeTextBullish,
+        status === 'bearish' && styles.badgeTextBearish,
+        status === 'neutral' && styles.badgeTextNeutral,
+      ]}
+    >
+      <Text
+        style={[
+          styles.badgeText,
+          status === 'bullish' && styles.badgeTextColorBullish,
+          status === 'bearish' && styles.badgeTextColorBearish,
+          status === 'neutral' && styles.badgeTextColorNeutral,
+        ]}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  container: {
+    flex: 1,
+    paddingBottom: 40,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 24,
+    padding: 32,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginRight: 12,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
+  loadingWrap: {
+    height: 256,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 16,
+  },
+  errorWrap: {
+    height: 256,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  errorTitle: {
+    color: '#fb7185',
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  errorMessage: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: 320,
+  },
+  tableScroll: {
+    flexGrow: 0,
+  },
+  table: {
+    minWidth: '100%',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
+  },
+  th: {
+    padding: 16,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
+  },
+  td: {
+    padding: 16,
+    justifyContent: 'center',
+  },
+  indicatorHeader: {
+    width: 180,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '500',
+  },
+  timeframeHeader: {
+    width: 140,
+    textAlign: 'center',
+  },
+  indicatorCell: {
+    width: 180,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  badgeCell: {
+    width: 140,
+    alignItems: 'center',
+  },
+  synthesisBox: {
+    marginTop: 32,
+    padding: 24,
+    backgroundColor: 'rgba(99,102,241,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.2)',
+    borderRadius: 16,
+  },
+  synthesisTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  synthesisTitle: {
+    color: '#a5b4fc',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  synthesisText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  scoreText: {
+    fontWeight: '700',
+  },
+  scoreBullish: {
+    color: '#34d399',
+  },
+  scoreBearish: {
+    color: '#fb7185',
+  },
+  scoreNeutral: {
+    color: '#fbbf24',
+  },
+  badgeIconBullish: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: 'rgba(16,185,129,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  badgeIconBearish: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: 'rgba(244,63,94,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  badgeIconNeutral: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: 'rgba(245,158,11,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  badgeTextBase: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  badgeTextBullish: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderColor: 'rgba(16,185,129,0.2)',
+  },
+  badgeTextBearish: {
+    backgroundColor: 'rgba(244,63,94,0.1)',
+    borderColor: 'rgba(244,63,94,0.2)',
+  },
+  badgeTextNeutral: {
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    borderColor: 'rgba(245,158,11,0.2)',
+  },
+  badgeTextColorBullish: {
+    color: '#86efac',
+  },
+  badgeTextColorBearish: {
+    color: '#fda4af',
+  },
+  badgeTextColorNeutral: {
+    color: '#fcd34d',
+  },
+});
