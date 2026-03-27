@@ -231,6 +231,15 @@ export default function MainScreen() {
 
   return (
     <View style={containerStyle}>
+      {/* DEV badge — visible only in __DEV__ builds, shows load source */}
+      {__DEV__ && status === 'ready' && (
+        <View style={s.devBadge} pointerEvents="none">
+          <Text style={s.devTxt}>
+            {IS_DEV ? `DEV  ${DEV_SERVER_URL}` : `DEV  cache`}
+          </Text>
+        </View>
+      )}
+
       {/* Loading spinner — shown until WebView fires onLoadEnd */}
       {status !== 'ready' && (
         <View style={[StyleSheet.absoluteFill, s.center]}>
@@ -338,6 +347,22 @@ const s = StyleSheet.create({
   retryTxt: {
     color: '#34d399',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  devBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(239,68,68,0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    zIndex: 999,
+  },
+  devTxt: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontWeight: '600',
   },
 });
