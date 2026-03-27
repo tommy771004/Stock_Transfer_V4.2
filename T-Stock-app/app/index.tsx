@@ -29,7 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { WebView, type WebViewNavigation } from 'react-native-webview';
+import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system';
 import { Asset } from 'expo-asset';
@@ -109,7 +109,6 @@ export default function MainScreen() {
   const [status,     setStatus]     = useState<LoadStatus>('idle');
   const [errorMsg,   setErrorMsg]   = useState('');
   const [webUri,     setWebUri]     = useState<string | null>(IS_DEV ? DEV_SERVER_URL : null);
-  const [canGoBack,  setCanGoBack]  = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   // ── Detect tablet ──────────────────────────────────────────────────────────
@@ -179,10 +178,6 @@ export default function MainScreen() {
       return false;
     });
     return () => sub.remove();
-  }, []);
-
-  const onNavChange = useCallback((nav: WebViewNavigation) => {
-    setCanGoBack(nav.canGoBack);
   }, []);
 
   const onLoadEnd = useCallback(() => {
@@ -309,7 +304,6 @@ export default function MainScreen() {
             setErrorMsg(e.nativeEvent.description || '頁面載入失敗');
             setStatus('error');
           }}
-          onNavigationStateChange={onNavChange}
           onMessage={e => {
             if (e.nativeEvent.data === 'EXIT_APP') BackHandler.exitApp();
           }}

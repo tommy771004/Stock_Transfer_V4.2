@@ -165,8 +165,8 @@ function MainApp() {
     const handleNativeBack = () => {
       if (page === 'market') {
         // 如果已經在首頁，通知 Native 端退出 App
-        if (typeof window !== 'undefined' && (window as any).ReactNativeWebView) {
-          (window as any).ReactNativeWebView.postMessage('EXIT_APP');
+        if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage('EXIT_APP');
         }
       } else {
         // 如果不在首頁，則切回首頁

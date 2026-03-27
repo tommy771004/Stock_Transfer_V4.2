@@ -13,12 +13,14 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     const loadSettings = async () => {
-      const keys = ['fontSize', 'compactMode', 'animationsOn', 'theme', 'language', 'sidebarDefaultState', 'defaultOrderQty', 'defaultOrderType', 'defaultPriceType', 'slippageTolerance', 'defaultBroker', 'defaultChartTimeframe', 'displayCurrency', 'defaultModel', 'systemInstruction']; // Add keys as needed
-      const loaded: Record<string, unknown> = {};
-      for (const key of keys) {
-        const val = await getSetting(key);
-        if (val !== null && val !== undefined) loaded[key] = val;
-      }
+      const keys = ['fontSize', 'compactMode', 'animationsOn', 'theme', 'language', 'sidebarDefaultState', 'defaultOrderQty', 'defaultOrderType', 'defaultPriceType', 'slippageTolerance', 'defaultBroker', 'defaultChartTimeframe', 'displayCurrency', 'defaultModel', 'systemInstruction'];
+      // Parallel fetch — avoids 15 serial IPC round-trips in Electron mode
+      const entries = await Promise.all(
+        keys.map(async key => [key, await getSetting(key)] as const)
+      );
+      const loaded = Object.fromEntries(
+        entries.filter(([, val]) => val !== null && val !== undefined)
+      );
       setSettings(loaded);
     };
     loadSettings();
