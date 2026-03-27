@@ -40,6 +40,7 @@ import PricingModal  from './components/PricingModal';
 import { NotificationProvider } from './components/NotificationCenter';
 import { NotificationBell }     from './components/NotificationCenter';
 import NotificationCenter       from './components/NotificationCenter';
+import { IS_MOBILE_WEBVIEW }    from './services/api';
 
 class AppErrorBoundary extends React.Component<{children:React.ReactNode},{hasError:boolean;error:unknown}> {
   constructor(props: {children:React.ReactNode}) { super(props); this.state={hasError:false,error:null}; }
@@ -378,10 +379,10 @@ function MainApp() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={page}
-                  initial={{ opacity: 0, y: 10, scale: 0.99 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.99 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  initial={IS_MOBILE_WEBVIEW ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.99 }}
+                  animate={IS_MOBILE_WEBVIEW ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+                  exit={IS_MOBILE_WEBVIEW ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.99 }}
+                  transition={IS_MOBILE_WEBVIEW ? { duration: 0.15 } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                   className="h-full"
                 >
                   {page==='market'    && <ErrorBoundary name="市場總覽"><MarketOverview onSelectSymbol={goTrading}/></ErrorBoundary>}

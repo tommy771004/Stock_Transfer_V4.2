@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
-import { apiUrl } from '../services/api';
+import { apiUrl, IS_MOBILE_WEBVIEW } from '../services/api';
 import ChartWidget from './ChartWidget';
 import { PerformanceSummary } from './PerformanceSummary';
 import { Quote, HistoricalData, AIAnalysisResult, SentimentData, Trade } from '../types';
@@ -141,6 +141,12 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
 const isUp = (quote?.regularMarketChange ?? 0) >= 0;
 
 const exportToCSV = (data: HistoricalData[], filename: string) => {
+  // File downloads via anchor-click are not supported in the mobile WebView
+  // (iOS WKWebView ignores the download attribute; Android blocks data: URIs).
+  if (IS_MOBILE_WEBVIEW) {
+    window.alert('匯出功能僅支援桌面版（Electron）。行動版請使用電腦匯出後傳送檔案。');
+    return;
+  }
   const csvContent = "data:text/csv;charset=utf-8," +
     ["Date,Open,High,Low,Close,Volume"].concat(
       data.map(r => `${r.date},${r.open},${r.high},${r.low},${r.close},${r.volume}`)

@@ -97,7 +97,7 @@ const AllocationPieChart = memo(({ alloc, totalMV, compact }: { alloc: { name: s
       <div className="flex-1 h-full">
         <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <PieChart>
-            <Pie data={alloc} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
+            <Pie data={alloc} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none" isAnimationActive={false}>
               {alloc.map((e,i)=><Cell key={i} fill={e.color}/>)}
             </Pie>
 
@@ -147,7 +147,7 @@ const PnLBarChartPanel = memo(({ pnlData, compact }: { pnlData: { name: string; 
 />
 <ReferenceLine x={0} stroke="var(--border-color)"/>
 
-          <Bar dataKey="pnl">
+          <Bar dataKey="pnl" isAnimationActive={false}>
             {pnlData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
@@ -370,7 +370,7 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
           {showCapSet&&(
             <div className="flex items-center gap-2 mb-2">
               <input aria-label="初始資金" type="number" value={capInput} onChange={e=>setCapInput(e.target.value)} placeholder="初始資金"
-                className="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg px-2 py-1 text-[var(--text-color)] text-xs font-mono focus:outline-none focus:border-emerald-500/50"/>
+                className="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg px-2 py-1 text-[var(--text-color)] text-base md:text-xs font-mono focus:outline-none focus:border-emerald-500/50"/>
               <button onClick={applyCapital} className="px-2 py-1 bg-emerald-950 text-emerald-400 text-xs rounded-lg border border-emerald-900/50">套用</button>
               <button onClick={()=>setShowCapSet(false)} className="px-2 py-1 bg-[var(--border-color)] text-[var(--text-color)] opacity-60 text-xs rounded-lg border border-[var(--border-color)]">取消</button>
             </div>
@@ -390,8 +390,8 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
                   <XAxis dataKey="date" tick={{fill:'#71717a',fontSize: compact ? 8 : 9}} tickLine={false} interval="preserveStartEnd" tickFormatter={v=>v.slice(5)}/>
                   <YAxis tick={{fill:'#71717a',fontSize: compact ? 8 : 9}} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
                   <Tooltip content={<EquityTip/>}/>
-                  {benchmark.length>0&&<Area type="monotone" dataKey="benchmark" name={`${benchSym} 基準`} stroke="#52525b" strokeWidth={1.5} fill="none" dot={false} strokeDasharray="4 2"/>}
-                  <Area type="monotone" dataKey="value" name="策略淨值" stroke="#10b981" strokeWidth={2} fill="url(#eg)" dot={false}/>
+                  {benchmark.length>0&&<Area type="monotone" dataKey="benchmark" name={`${benchSym} 基準`} stroke="#52525b" strokeWidth={1.5} fill="none" dot={false} strokeDasharray="4 2" isAnimationActive={false}/>}
+                  <Area type="monotone" dataKey="value" name="策略淨值" stroke="#10b981" strokeWidth={2} fill="url(#eg)" dot={false} isAnimationActive={false}/>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -530,10 +530,10 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
                     </div>
                   </td>
                   <td className="py-3 font-mono text-zinc-300">
-                    {editIdx===idx?<input aria-label="持股數量" type="number" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-xs w-16" value={editBuf.shares??p.shares} onChange={e=>setEditBuf(b=>({...b,shares:Number(e.target.value)}))}/>:p.shares.toLocaleString()}
+                    {editIdx===idx?<input aria-label="持股數量" type="number" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-base md:text-xs w-16" value={editBuf.shares??p.shares} onChange={e=>setEditBuf(b=>({...b,shares:Number(e.target.value)}))}/>:p.shares.toLocaleString()}
                   </td>
                   <td className="py-3 font-mono text-zinc-300">
-                    {editIdx===idx?<input aria-label="平均成本" type="number" step="0.01" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-xs w-20" value={editBuf.avgCost??p.avgCost} onChange={e=>setEditBuf(b=>({...b,avgCost:Number(e.target.value)}))}/>:p.avgCost.toFixed(2)}
+                    {editIdx===idx?<input aria-label="平均成本" type="number" step="0.01" className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-100 text-base md:text-xs w-20" value={editBuf.avgCost??p.avgCost} onChange={e=>setEditBuf(b=>({...b,avgCost:Number(e.target.value)}))}/>:p.avgCost.toFixed(2)}
                   </td>
                   <td className="py-3 font-mono text-zinc-100">{p.currentPrice!=null?p.currentPrice.toFixed(2):<Loader2 className="w-3 h-3 animate-spin text-zinc-600 inline"/>}</td>
                   <td className="py-3 font-mono text-zinc-100 text-right">${Math.round(p.marketValueTWD??p.marketValue??0).toLocaleString()}</td>

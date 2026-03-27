@@ -77,7 +77,7 @@ export const Alerts: React.FC<AlertsProps> = React.memo(({ symbol }) => {
               <option value="above">高於</option>
               <option value="below">低於</option>
             </select>
-            <input aria-label="目標價格" type="number" min="0" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="價格" className={cn("flex-1 bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)] font-mono", compact ? "text-xs" : "text-sm")} />
+            <input aria-label="目標價格" type="number" min="0" step="0.01" value={target} onChange={e => setTarget(e.target.value)} placeholder="價格" className={cn("flex-1 bg-black/30 border border-white/8 rounded-lg px-2 py-1 text-[var(--text-color)] font-mono text-base md:text-sm")} />
           </div>
           <button onClick={addAlert} className={cn("w-full py-1.5 rounded-lg bg-emerald-500 text-black font-bold", compact ? "text-xs" : "text-sm")}>新增警示</button>
         </div>

@@ -79,7 +79,7 @@ export default function VisualStrategyBuilder({ onChange }: { onChange: (script:
             <select aria-label="條件運算子" value={c.operator} onChange={(e) => updateCondition(c.id, 'operator', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none">
               {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
-            <input aria-label="條件數值或指標" type="text" value={c.value} onChange={(e) => updateCondition(c.id, 'value', e.target.value)} className="bg-transparent text-xs text-zinc-300 focus:outline-none w-20" placeholder="數值/指標" />
+            <input aria-label="條件數值或指標" type="text" value={c.value} onChange={(e) => updateCondition(c.id, 'value', e.target.value)} className="bg-transparent text-base md:text-xs text-zinc-300 focus:outline-none w-20" placeholder="數值/指標" />
             <button onClick={() => removeCondition(c.id)} className="ml-auto text-zinc-600 hover:text-rose-400">
               <Trash2 size={12}/>
             </button>
