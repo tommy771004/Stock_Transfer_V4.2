@@ -2,38 +2,38 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # T-Stock-app  —  sync web bundle
 #
-# Builds the parent Vite project in single-bundle mode (all JS/CSS inlined)
-# and copies the result to T-Stock-app/assets/web/index.html.
+# Builds the web/ sub-project (Vite, single-bundle) and outputs directly to
+# T-Stock-app/assets/web/index.html for WebView loading.
 #
-# Must be run from inside T-Stock-app/ or from the repo root.
-#
-# Usage:
+# Usage (from T-Stock-app/):
 #   npm run sync-web             # build only
 #   npm run sync-and-ios         # build + expo run:ios
 #   npm run sync-and-android     # build + expo run:android
-#   bash scripts/build-mobile.sh --ios
-#   bash scripts/build-mobile.sh --android
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"          # …/Stock_Transfer_V4.2/T-Stock-app
-WEB_DIR="$(cd "$EXPO_DIR/.." && pwd)"             # …/Stock_Transfer_V4.2
+EXPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"      # T-Stock-app/
+WEB_DIR="$EXPO_DIR/web"                        # T-Stock-app/web/
 ASSETS_WEB="$EXPO_DIR/assets/web"
 
 echo "━━━ T-Stock-app : sync web bundle ━━━"
-echo "  Web project : $WEB_DIR"
-echo "  Expo dir    : $EXPO_DIR"
+echo "  Web source : $WEB_DIR"
+echo "  Output     : $ASSETS_WEB/index.html"
 echo ""
 
-# ── 1. Build Vite single-bundle ──────────────────────────────────────────────
-echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
-cd "$WEB_DIR"
-npx vite build --config vite.config.mobile.ts
+# ── 1. Ensure web deps installed ─────────────────────────────────────────────
+if [ ! -d "$WEB_DIR/node_modules" ]; then
+  echo "▶ Installing web dependencies…"
+  (cd "$WEB_DIR" && npm install)
+fi
 
-# ── 2. Copy to assets/web/ ───────────────────────────────────────────────────
+# ── 2. Build Vite single-bundle ──────────────────────────────────────────────
+echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 mkdir -p "$ASSETS_WEB"
-cp "$WEB_DIR/dist-mobile/index.html" "$ASSETS_WEB/index.html"
+cd "$WEB_DIR"
+npm run build:mobile
+
 SIZE=$(du -sh "$ASSETS_WEB/index.html" | cut -f1)
 echo "  ✓ assets/web/index.html  ($SIZE)"
 echo ""
@@ -52,20 +52,18 @@ case "${1:-}" in
   *)
     echo "━━━ Next steps ━━━"
     echo ""
-    echo "  # Start Expo dev server (Expo Go / scan QR):"
-    echo "  cd $EXPO_DIR && npx expo start"
+    echo "  # Live dev (Vite hot-reload, set DEV_SERVER_URL in app/index.tsx):"
+    echo "  cd $WEB_DIR && npm run dev"
     echo ""
-    echo "  # Generate native Xcode + Android Studio projects:"
+    echo "  # Generate Xcode + Android Studio native projects:"
     echo "  cd $EXPO_DIR && npx expo prebuild"
     echo ""
-    echo "  # Run on iOS simulator (requires macOS + Xcode):"
+    echo "  # iOS (macOS + Xcode required):"
     echo "  cd $EXPO_DIR && npx expo run:ios"
+    echo "  open $EXPO_DIR/ios/TStock.xcworkspace"
     echo ""
-    echo "  # Run on Android emulator (requires Android Studio):"
+    echo "  # Android (Android Studio required):"
     echo "  cd $EXPO_DIR && npx expo run:android"
-    echo ""
-    echo "  # After prebuild, open native projects directly:"
-    echo "  Xcode:           open $EXPO_DIR/ios/TStock.xcworkspace"
-    echo "  Android Studio:  open $EXPO_DIR/android/"
+    echo "  # File > Open > $EXPO_DIR/android/"
     ;;
 esac
