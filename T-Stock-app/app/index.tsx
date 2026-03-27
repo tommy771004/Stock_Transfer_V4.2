@@ -284,7 +284,11 @@ export default function MainScreen() {
           // POST: UX tweaks after DOM is ready
           injectedJavaScript={POST_INJECTED_JS}
           // ── Events ──
-          onLoadStart={() => setStatus('loading')}
+          onLoadStart={e => {
+            // Suppress spinner for SPA hash/history navigation — only show
+            // loading overlay for a full page (re)load.
+            if (e.nativeEvent.navigationType === 'other') setStatus('loading');
+          }}
           onLoadEnd={onLoadEnd}
           onError={e => {
             setErrorMsg(e.nativeEvent.description || '頁面載入失敗');
