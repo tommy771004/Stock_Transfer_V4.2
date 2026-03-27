@@ -53,6 +53,12 @@
       ],
       "./plugins/withAndroidCleartext"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": false
+    },
     "experiments": {
       "typedRoutes": true
     }

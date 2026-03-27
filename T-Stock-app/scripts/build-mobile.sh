@@ -22,11 +22,9 @@ echo "  Web source : $WEB_DIR"
 echo "  Output     : $ASSETS_WEB/index.html"
 echo ""
 
-# ── 1. Ensure web deps installed ─────────────────────────────────────────────
-if [ ! -d "$WEB_DIR/node_modules" ]; then
-  echo "▶ Installing web dependencies…"
-  (cd "$WEB_DIR" && npm install)
-fi
+# ── 1. Install web deps (npm ci for reproducible CI/CD installs) ─────────────
+echo "▶ Installing web dependencies (npm ci)…"
+(cd "$WEB_DIR" && npm ci)
 
 # ── 2. Build Vite single-bundle ──────────────────────────────────────────────
 echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
