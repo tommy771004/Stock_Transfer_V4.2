@@ -33,6 +33,7 @@ import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system';
 import { Asset } from 'expo-asset';
+import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 
 // ─── Dev-server config ────────────────────────────────────────────────────────
@@ -195,9 +196,18 @@ export default function MainScreen() {
       <View style={[s.center, { paddingTop: insets.top }]}>
         <Text style={s.errTitle}>T-Stock 發生錯誤</Text>
         <Text style={s.errMsg}>{errorMsg || '頁面載入失敗'}</Text>
-        <TouchableOpacity style={s.retryBtn} onPress={onRetry} accessibilityRole="button">
+        <TouchableOpacity
+          style={s.retryBtn}
+          onPress={onRetry}
+          accessibilityRole="button"
+          accessibilityLabel="重試載入 T-Stock"
+          accessibilityHint="點擊後重新嘗試載入應用程式"
+        >
           <Text style={s.retryTxt}>重試</Text>
         </TouchableOpacity>
+        <Text style={s.errVersion}>
+          v{Constants.expoConfig?.version ?? '1.0.0'}
+        </Text>
       </View>
     );
   }
@@ -358,6 +368,13 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
     zIndex: 999,
+    elevation: 10,
+  },
+  errVersion: {
+    color: '#52525b',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginTop: 12,
   },
   devTxt: {
     color: '#fff',

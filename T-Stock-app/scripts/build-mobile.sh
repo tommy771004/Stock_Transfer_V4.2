@@ -22,14 +22,25 @@ echo "  Web source : $WEB_DIR"
 echo "  Output     : $ASSETS_WEB/index.html"
 echo ""
 
-# ── 1. Install web deps (npm ci for reproducible CI/CD installs) ─────────────
-echo "▶ Installing web dependencies (npm ci)…"
-(cd "$WEB_DIR" && npm ci)
+# ── 1. Install web deps ───────────────────────────────────────────────────────
+# Use npm ci when a lockfile exists (reproducible CI/CD); fall back to
+# npm install when it's missing (e.g. fresh clone before lockfile is committed).
+echo "▶ Installing web dependencies…"
+if [ -f "$WEB_DIR/package-lock.json" ]; then
+  echo "  Using npm ci (lockfile found)"
+  (cd "$WEB_DIR" && npm ci)
+else
+  echo "  ⚠ package-lock.json not found — falling back to npm install"
+  (cd "$WEB_DIR" && npm install)
+fi
 
 # ── 2. Build Vite single-bundle ──────────────────────────────────────────────
-echo "▶ Cleaning old web assets to prevent ghost files..."
-# 確保每次打包前清空舊檔案，避免殘留
-rm -rf "$ASSETS_WEB"
+# Clean stale hashed asset chunks first so they don't accumulate across builds
+# and inflate the IPA / APK via assetBundlePatterns: ["assets/**"].
+echo "▶ Cleaning stale web asset chunks…"
+rm -rf "$ASSETS_WEB/assets"
+
+echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 mkdir -p "$ASSETS_WEB"
 
 echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
