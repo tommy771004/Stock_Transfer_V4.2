@@ -142,7 +142,8 @@ export default function TradeJournal() {
       // Recalculate PnL
       const actionStr = merged.action || '';
       const isBuy = actionStr.includes('Buy') || actionStr.includes('做多');
-      merged.pnl = +((merged.exit - merged.entry) * merged.qty * (isBuy ? 1 : -1)).toFixed(2);
+      merged.pnl = +new Decimal(merged.exit).minus(merged.entry)
+        .times(merged.qty).times(isBuy ? 1 : -1).toDecimalPlaces(2).toNumber();
       merged.status = merged.pnl >= 0 ? 'Win' : 'Loss';
       await updateTrade(merged);
       setTrades(p => p.map(t => t.id === editId ? merged : t));

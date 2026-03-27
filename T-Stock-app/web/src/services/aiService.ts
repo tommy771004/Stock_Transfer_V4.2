@@ -64,9 +64,19 @@ async function callOpenRouter(prompt: string, model: string, jsonMode: boolean =
     body.response_format = { type: 'json_object' };
   }
 
+  // In mobile WebView the page loads from file://, so window.location.origin
+  // is "null" or "file://" — use a stable fallback so OpenRouter never sees an
+  // invalid origin (some models reject file:// referrers with 403).
+  const origin = (typeof window !== 'undefined' &&
+    window.location.origin &&
+    window.location.origin !== 'null' &&
+    !window.location.origin.startsWith('file:'))
+    ? window.location.origin
+    : 'https://t-stock-app';
+
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method:  'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': window.location.origin, 'X-Title': 'AI Trading Dashboard' },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': origin, 'X-Title': 'AI Trading Dashboard' },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

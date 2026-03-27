@@ -9,6 +9,7 @@ interface TickerItem { symbol: string; pct: number; }
 interface MarketDataContextType {
   tickers: TickerItem[];
   latency: number;
+  isOffline: boolean;
 }
 
 const MarketDataContext = createContext<MarketDataContextType | undefined>(undefined);
@@ -66,7 +67,7 @@ export const MarketDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   return (
-    <MarketDataContext.Provider value={{ tickers, latency }}>
+    <MarketDataContext.Provider value={{ tickers, latency, isOffline: IS_MOBILE_OFFLINE }}>
       {children}
     </MarketDataContext.Provider>
   );
