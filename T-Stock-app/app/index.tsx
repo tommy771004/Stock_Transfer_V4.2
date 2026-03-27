@@ -9,6 +9,13 @@
  * Phone vs Tablet:
  *   isTablet (width >= 768) → the web app itself is responsive via Tailwind,
  *   so the WebView simply fills the screen in both cases.
+ *
+ * JS injection timing:
+ *   PRE_INJECTED_JS  → injectedJavaScriptBeforeContentLoaded
+ *     Runs BEFORE the page's <script> tags execute, so api.ts module-level
+ *     constants (IS_MOBILE_WEBVIEW) see window.__EXPO_WEBVIEW__ = true.
+ *   POST_INJECTED_JS → injectedJavaScript
+ *     Runs AFTER DOMContentLoaded — used for UX tweaks only.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -38,8 +45,27 @@ import * as Haptics from 'expo-haptics';
 const DEV_SERVER_URL = '';
 const IS_DEV = __DEV__ && DEV_SERVER_URL !== '';
 
-// ─── JS injected into the WebView ─────────────────────────────────────────────
-const INJECTED_JS = `
+// ─── JS injected BEFORE page content loads ────────────────────────────────────
+/**
+ * CRITICAL: these flags must be set before the React web bundle's module-level
+ * constants are evaluated. injectedJavaScriptBeforeContentLoaded fires before
+ * any <script> tags in the HTML are parsed, so IS_MOBILE_WEBVIEW in api.ts
+ * will correctly see true when the module initialises.
+ *
+ * __IS_TABLET__ uses window.screen.width so it reflects the actual device
+ * width at injection time (not a frozen Dimensions snapshot).
+ */
+const PRE_INJECTED_JS = `
+(function () {
+  window.__EXPO_WEBVIEW__ = true;
+  window.__PLATFORM__    = ${JSON.stringify(Platform.OS)};
+  window.__IS_TABLET__   = window.screen.width >= 768;
+  true;
+})();
+`;
+
+// ─── JS injected AFTER page content loads ────────────────────────────────────
+const POST_INJECTED_JS = `
 (function () {
   // Prevent double-tap zoom
   var last = 0;
@@ -52,11 +78,6 @@ const INJECTED_JS = `
   // Disable long-press text selection (more native feel)
   document.documentElement.style.webkitUserSelect = 'none';
   document.documentElement.style.userSelect = 'none';
-
-  // Flags the web app can read via window.__EXPO_WEBVIEW__
-  window.__EXPO_WEBVIEW__ = true;
-  window.__PLATFORM__    = '${Platform.OS}';
-  window.__IS_TABLET__   = ${Dimensions.get('window').width >= 768};
 
   true;
 })();
@@ -71,10 +92,11 @@ export default function MainScreen() {
   const insets    = useSafeAreaInsets();
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
-  const [status,    setStatus]    = useState<LoadStatus>('idle');
-  const [errorMsg,  setErrorMsg]  = useState('');
-  const [webUri,    setWebUri]    = useState<string | null>(IS_DEV ? DEV_SERVER_URL : null);
-  const [canGoBack, setCanGoBack] = useState(false);
+  const [status,     setStatus]     = useState<LoadStatus>('idle');
+  const [errorMsg,   setErrorMsg]   = useState('');
+  const [webUri,     setWebUri]     = useState<string | null>(IS_DEV ? DEV_SERVER_URL : null);
+  const [canGoBack,  setCanGoBack]  = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // ── Detect tablet ──────────────────────────────────────────────────────────
   const [dims, setDims] = useState(Dimensions.get('window'));
@@ -84,20 +106,30 @@ export default function MainScreen() {
   }, []);
   const isTablet = dims.width >= 768;
 
-  // ── Copy bundled HTML to cache on first launch ─────────────────────────────
+  // ── Copy bundled HTML to cache ─────────────────────────────────────────────
+  // Depends on retryCount so tapping "Retry" after a FileSystem error
+  // re-executes the copy logic instead of leaving the user on a dead spinner.
   useEffect(() => {
     if (IS_DEV) return;
+
+    let cancelled = false;
 
     (async () => {
       try {
         setStatus('loading');
+        setWebUri(null);
         const destDir   = FileSystem.cacheDirectory! + 'tstock-web/';
         const destIndex = destDir + 'index.html';
 
         const info = await FileSystem.getInfoAsync(destIndex);
-        if (info.exists) {
-          setWebUri(destIndex);
+        if (info.exists && retryCount === 0) {
+          if (!cancelled) setWebUri(destIndex);
           return;
+        }
+
+        // On retry: delete stale cache so a fresh copy is made
+        if (info.exists) {
+          await FileSystem.deleteAsync(destIndex, { idempotent: true });
         }
 
         await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
@@ -105,14 +137,17 @@ export default function MainScreen() {
         const asset = Asset.fromModule(require('../assets/web/index.html'));
         await asset.downloadAsync();
         await FileSystem.copyAsync({ from: asset.localUri!, to: destIndex });
-        setWebUri(destIndex);
+        if (!cancelled) setWebUri(destIndex);
       } catch (e) {
+        if (cancelled) return;
         const msg = e instanceof Error ? e.message : '無法載入應用程式資源';
         setErrorMsg(msg || '無法載入應用程式資源');
         setStatus('error');
       }
     })();
-  }, []);
+
+    return () => { cancelled = true; };
+  }, [retryCount]);
 
   // ── Android hardware back button ───────────────────────────────────────────
   useEffect(() => {
@@ -143,10 +178,16 @@ export default function MainScreen() {
   const onRetry = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     fadeAnim.setValue(0);
-    setStatus('idle');
     setErrorMsg('');
-    webRef.current?.reload();
-  }, [fadeAnim]);
+    setStatus('idle');
+    if (!webUri) {
+      // FileSystem error path: re-trigger the copy useEffect
+      setRetryCount(c => c + 1);
+    } else {
+      // WebView load error path: reload the already-copied HTML
+      webRef.current?.reload();
+    }
+  }, [fadeAnim, webUri]);
 
   // ── Error screen ───────────────────────────────────────────────────────────
   if (status === 'error') {
@@ -208,16 +249,16 @@ export default function MainScreen() {
           javaScriptEnabled
           domStorageEnabled
           allowFileAccess
-          // allowUniversalAccessFromFileURLs: only needed on iOS for file:// cross-origin;
-          // on Android the bundled HTML is self-contained so this is not required
-          // (avoids Android Studio lint error MIXED_CONTENT_ALWAYS_ALLOW)
           allowUniversalAccessFromFileURLs={Platform.OS !== 'android'}
           originWhitelist={['*']}
           mixedContentMode="compatibility"
           // ── Performance ──
           cacheEnabled
           // ── JS injection ──
-          injectedJavaScript={INJECTED_JS}
+          // PRE: sets window.__EXPO_WEBVIEW__ before the React bundle executes
+          injectedJavaScriptBeforeContentLoaded={PRE_INJECTED_JS}
+          // POST: UX tweaks after DOM is ready
+          injectedJavaScript={POST_INJECTED_JS}
           // ── Events ──
           onLoadStart={() => setStatus('loading')}
           onLoadEnd={onLoadEnd}

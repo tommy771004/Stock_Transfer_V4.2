@@ -25,7 +25,8 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
-        "UIRequiresFullScreen": false
+        "UIRequiresFullScreen": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent"
       }
     },
     "android": {
@@ -49,7 +50,8 @@
           "backgroundColor": "#09090b",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "./plugins/withAndroidCleartext"
     ],
     "experiments": {
       "typedRoutes": true

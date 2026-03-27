@@ -36,3 +36,6 @@ release/
 *.js
 *.js.map
 dist-mobile/
+
+# Expo Config Plugins (hand-written, must not be ignored)
+!T-Stock-app/plugins/*.js
