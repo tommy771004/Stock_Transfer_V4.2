@@ -29,7 +29,7 @@ useEffect(() => {
       
       setIsAnalyzing(true);
       try {
-        const aiResult = await getAISentiment(marketData, model);
+        const aiResult = await getAISentiment(Array.isArray(marketData) ? marketData : [], model);
         setSentiment(aiResult);
       } catch (error) {
         console.error('Failed to analyze sentiment:', error);

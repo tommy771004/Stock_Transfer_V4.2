@@ -82,6 +82,14 @@ const EquityTip = ({ active, payload, label }: EquityTipProps) => {
     ? (portPayload.value - benchPayload.value) 
     : null;
 
+
+const EquityTip=(props: TooltipProps<number, string>)=>{
+  const { active, payload, label } = props as { active?: boolean; payload?: { dataKey: string; value?: number }[]; label?: string };
+  if(!active||!payload?.length) return null;
+  const portPayload=payload.find((p)=>p.dataKey==='value');
+  const benchPayload=payload.find((p)=>p.dataKey==='benchmark');
+  const alpha=portPayload&&benchPayload?((portPayload.value??0)-(benchPayload.value??0)):null;
+
   return (
     <div className="bg-[var(--card-bg)] border border-white/10 rounded-xl p-2.5 text-xs font-mono shadow-xl min-w-[160px]">
       <div className="text-slate-400 mb-1.5">{label}</div>
@@ -109,6 +117,10 @@ const AllocationPieChart = memo(({ alloc, totalMV, compact }: { alloc: { name: s
             <Pie data={alloc} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
               {alloc.map((e,i)=><Cell key={i} fill={e.color}/>)}
             </Pie>
+
+            <Tooltip contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={(v)=>[`NT$${Number(v).toLocaleString(undefined,{maximumFractionDigits:0})}`,'市值']}/>
+          </PieChart>
+=======
             <Tooltip 
   contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', borderRadius: 8, fontSize: '12px' }} 
   formatter={(v: number | string | readonly (number | string)[] | undefined) => {
@@ -142,6 +154,9 @@ const PnLBarChartPanel = memo(({ pnlData, compact }: { pnlData: { name: string; 
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false}/>
           <XAxis type="number" tick={{fill:'var(--text-color)',opacity:0.5,fontSize: compact ? 8 : 9}} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
           <YAxis dataKey="name" type="category" tick={{fill:'var(--text-color)',opacity:0.7,fontSize: compact ? 8 : 9}} tickLine={false} axisLine={false} width={compact ? 50 : 60}/>
+
+          <Tooltip cursor={{fill:'var(--border-color)'}} contentStyle={{backgroundColor:'var(--card-bg)',borderColor:'var(--border-color)',borderRadius:8, fontSize: '12px'}} formatter={(v)=>[`$${Number(v).toLocaleString()}`,'損益']}/>
+          <ReferenceLine x={0} stroke="var(--border-color)"/>
           <Tooltip 
   cursor={{ fill: 'var(--border-color)' }} 
   contentStyle={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', borderRadius: 8, fontSize: '12px' }} 
@@ -151,6 +166,7 @@ const PnLBarChartPanel = memo(({ pnlData, compact }: { pnlData: { name: string; 
   }}
 />
 <ReferenceLine x={0} stroke="var(--border-color)"/>
+
           <Bar dataKey="pnl">
             {pnlData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />

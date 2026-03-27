@@ -177,7 +177,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
 
   const executeTrade = async () => {
     if (!selected) return;
-    setBusy(true);
+    setLoadState('refreshing');
     try {
       const data = await api.executeTrade({
         symbol: selected.symbol,
@@ -200,7 +200,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
       const msg = e instanceof Error ? e.message : '交易請求失敗';
       setToast({ msg, type: 'error' });
     } finally {
-      setBusy(false);
+      setLoadState('idle');
       setTimeout(() => setToast(null), 3000);
     }
   };
@@ -336,7 +336,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
   const handleAdd = async () => {
     const sym = addInput.trim().toUpperCase(); if (!sym) return;
     if (stocks.find(s => s.symbol === sym)) { setAddInput(''); setShowAdd(false); return; }
-    setBusy(true); setAddErr('');
+    setLoadState('refreshing'); setAddErr('');
     try {
       const q: Quote = await api.getQuote(sym);
       if (!q?.regularMarketPrice) throw new Error('找不到此代碼，請確認格式');
@@ -352,7 +352,7 @@ export default function MarketOverview({ onSelectSymbol }: Props) {
       const msg = e instanceof Error ? e.message : '查詢失敗';
       setAddErr(msg); 
     }
-    finally { setBusy(false); }
+    finally { setLoadState('idle'); }
   };
 
   const handleRemove = async (sym: string) => {

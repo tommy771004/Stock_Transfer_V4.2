@@ -35,3 +35,4 @@ release/
 # Generated JS/Map files
 *.js
 *.js.map
+dist-mobile/

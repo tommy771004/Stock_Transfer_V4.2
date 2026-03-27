@@ -168,27 +168,22 @@ export default function Settings() {
     </div>
   );
 
-const Toggle = ({ k }: { k: string }) => (
-  <button onClick={() => set(k, !settings[k])}
-    className={cn('relative w-11 h-6 rounded-full transition-colors', settings[k] ? 'bg-emerald-500' : 'bg-[var(--border-color)]')}>
-    <span className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', settings[k] ? 'translate-x-5' : '')}/>
-  </button>
-);
+  const Toggle = ({ k }: { k: string }) => (
+    <button onClick={() => set(k, !settings[k])}
+      className={cn('relative w-11 h-6 rounded-full transition-colors', settings[k]?'bg-emerald-500':'bg-[var(--border-color)]')}>
+      <span className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', Boolean(settings[k])&&'translate-x-5')}/>
+    </button>
+  );
 
-const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:string; type?:string }) => (
-  <input 
-    type={type} 
-    // 明確限縮型別為 string | number
-    value={(settings[k] as string | number | undefined) ?? ''} 
-    onChange={e => set(k, e.target.value)}
-    placeholder={placeholder}
-    className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none focus:border-emerald-500/50 w-full md:w-64 transition-colors"
-  />
-);
+  const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:string; type?:string }) => (
+    <input type={type} value={settings[k] as string|number|undefined ?? ''} onChange={e => set(k, e.target.value)}
+      placeholder={placeholder}
+      className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none focus:border-emerald-500/50 w-full md:w-64 transition-colors"/>
+  );
 
   const NumInput = ({ k, min, max, step, unit }: {k:string; min?:number; max?:number; step?:string; unit?:string}) => (
     <div className="flex items-center gap-2">
-      <input type="number" value={(settings[k] as string | number | undefined) ?? ''} min={min} max={max} step={step??'0.1'}
+      <input type="number" value={settings[k] as string|number|undefined ?? ''} min={min} max={max} step={step??'0.1'}
         onChange={e => set(k, e.target.value)}
         className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none focus:border-emerald-500/50 w-28 text-right font-mono transition-colors"/>
       {unit && <span className="text-xs text-zinc-500">{unit}</span>}
@@ -197,7 +192,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
 
   const SecretInput = ({ k, placeholder }: {k:string; placeholder?:string}) => (
     <div className="relative">
-      <input type={showKey[k]?'text':'password'} value={(settings[k] as string | number | undefined) ?? ''} onChange={e => set(k, e.target.value)}
+      <input type={showKey[k]?'text':'password'} value={settings[k] as string|number|undefined ?? ''} onChange={e => set(k, e.target.value)}
         placeholder={placeholder??'未設定'}
         className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 pr-9 text-[var(--text-color)] text-sm focus:outline-none focus:border-emerald-500/50 w-full md:w-64 font-mono transition-colors"/>
       <button onClick={() => setShowKey(p => ({ ...p, [k]:!p[k] }))}
@@ -347,17 +342,15 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
               <Row label="預設委託數量" hint="下單時預設的股數">
                 <NumInput k="defaultOrderQty" min={1} max={10000} step="1" unit="股"/>
               </Row>
-<Row label="預設委託類型" hint="ROD (限價當日有效) 或 IOC (立即成交否則取消)">
-                {/* 加上 ( ... as string) 明確宣告型別 */}
-                <select value={(settings.defaultOrderType as string) || 'ROD'} onChange={e => set('defaultOrderType', e.target.value)}
+              <Row label="預設委託類型" hint="ROD (限價當日有效) 或 IOC (立即成交否則取消)">
+                <select value={String(settings.defaultOrderType || 'ROD')} onChange={e => set('defaultOrderType', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="ROD">ROD</option>
                   <option value="IOC">IOC</option>
                 </select>
               </Row>
               <Row label="預設價格類型" hint="LMT (限價) 或 MKT (市價)">
-                {/* 加上 ( ... as string) 明確宣告型別 */}
-                <select value={(settings.defaultPriceType as string) || 'LMT'} onChange={e => set('defaultPriceType', e.target.value)}
+                <select value={String(settings.defaultPriceType || 'LMT')} onChange={e => set('defaultPriceType', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="LMT">LMT</option>
                   <option value="MKT">MKT</option>
@@ -376,7 +369,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
           {active==='market-ai' && (
             <div>
               <Row label="預設圖表週期" hint="圖表預設顯示的時間週期">
-                <select value={settings.defaultChartTimeframe as string || '1D'} onChange={e => set('defaultChartTimeframe', e.target.value)}
+                <select value={String(settings.defaultChartTimeframe || '1D')} onChange={e => set('defaultChartTimeframe', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="1M">1 分鐘</option>
                   <option value="5M">5 分鐘</option>
@@ -385,14 +378,14 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
                 </select>
               </Row>
               <Row label="顯示貨幣" hint="投資組合與分析顯示的貨幣單位">
-                <select value={settings.displayCurrency as string || 'TWD'} onChange={e => set('displayCurrency', e.target.value)}
+                <select value={String(settings.displayCurrency || 'TWD')} onChange={e => set('displayCurrency', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="TWD">TWD</option>
                   <option value="USD">USD</option>
                 </select>
               </Row>
               <Row label="預設 AI 模型" hint="AI 分析時預設使用的模型">
-                <select value={settings.defaultModel as string || MODELS[0].id} onChange={e => set('defaultModel', e.target.value)}
+                <select value={String(settings.defaultModel || MODELS[0].id)} onChange={e => set('defaultModel', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   {MODELS.map(m => (
                     <option key={m.id} value={m.id}>{m.label}</option>
@@ -400,7 +393,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
                 </select>
               </Row>
               <Row label="AI 系統指令" hint="自訂 AI 的分析風格與行為">
-                <textarea value={settings.systemInstruction as string || ''} onChange={e => set('systemInstruction', e.target.value)}
+                <textarea value={String(settings.systemInstruction || '')} onChange={e => set('systemInstruction', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none w-full md:w-64 h-28 md:h-24"
                   placeholder="例如：你是一個保守的技術分析師..."/>
               </Row>
@@ -411,7 +404,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
           {active==='ai' && (
             <div>
               <Row label="交易積極程度" hint="影響 AI 產生的買賣訊號頻率">
-                <select value={settings.aggressiveness} onChange={e => set('aggressiveness', e.target.value)}
+                <select value={settings.aggressiveness as string | undefined} onChange={e => set('aggressiveness', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="Conservative">保守型（訊號少但準）</option>
                   <option value="Balanced">均衡型（預設）</option>
@@ -455,7 +448,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
           {active==='display' && (
             <div>
               <Row label="介面主題" hint="選擇深色或淺色模式">
-                <select value={settings.theme as string || 'dark'} onChange={e => set('theme', e.target.value)}
+                <select value={String(settings.theme || 'dark')} onChange={e => set('theme', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="dark">深色</option>
                   <option value="light">淺色</option>
@@ -463,14 +456,14 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
                 </select>
               </Row>
               <Row label="語言" hint="選擇應用程式顯示語言">
-                <select value={settings.language as string || 'zh-TW'} onChange={e => set('language', e.target.value)}
+                <select value={String(settings.language || 'zh-TW')} onChange={e => set('language', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="zh-TW">繁體中文</option>
                   <option value="en-US">English</option>
                 </select>
               </Row>
               <Row label="側邊欄預設狀態" hint="應用程式啟動時側邊欄的狀態">
-                <select value={settings.sidebarDefaultState as string || 'expanded'} onChange={e => set('sidebarDefaultState', e.target.value)}
+                <select value={String(settings.sidebarDefaultState || 'expanded')} onChange={e => set('sidebarDefaultState', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="expanded">展開</option>
                   <option value="collapsed">收合</option>
@@ -484,7 +477,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
               </Row>
               <Row label="自動刷新間隔" hint="市場資料的更新頻率（秒）">
                 <div className="flex items-center gap-2">
-                  <select value={settings.autoRefreshInterval} onChange={e => set('autoRefreshInterval', e.target.value)}
+                  <select value={settings.autoRefreshInterval as string | undefined} onChange={e => set('autoRefreshInterval', e.target.value)}
                     className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                     <option value="10">10 秒</option>
                     <option value="20">20 秒</option>
@@ -495,7 +488,7 @@ const TextInput = ({ k, placeholder, type='text' }: { k:string; placeholder?:str
                 </div>
               </Row>
               <Row label="字體大小" hint="調整全域字體大小">
-                <select value={settings.fontSize} onChange={e => set('fontSize', e.target.value)}
+                <select value={settings.fontSize as string | undefined} onChange={e => set('fontSize', e.target.value)}
                   className="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-color)] text-sm focus:outline-none">
                   <option value="small">小</option>
                   <option value="normal">標準</option>

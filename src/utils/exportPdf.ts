@@ -141,15 +141,16 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
     <table>
       <thead><tr><th>日期</th><th>代號</th><th>方向</th><th>進場</th><th>出場</th><th>數量</th><th>損益</th></tr></thead>
       <tbody>
-        ${trades.slice(0, 50).map((t) => {
+        ${trades.slice(0, 50).map((raw) => {
+          const t = raw as Trade & Pick<BacktestTrade, 'time'|'symbol'|'ticker'|'action'|'entry'|'exit'|'qty'|'amount'|'type'>;
           return `
           <tr>
             <td>${escapeHtml(String(t.date ??  '').slice(0,10))}</td>
             <td><strong>${escapeHtml(t.symbol ?? t.ticker ?? '')}</strong></td>
-            <td><span class="badge ${String(t.action??'').includes('Buy')?'badge-green':'badge-red'}">${escapeHtml(String(t.action??''))}</span></td>
-            <td>${(t.entry ?? t.price ?? 0).toFixed(2)}</td>
-            <td>${(t.exit ?? 0).toFixed(2)}</td>
-            <td>${(t.qty ??  0).toLocaleString()}</td>
+            <td><span class="badge ${String(t.type??t.action??'').includes('Buy')||t.type==='BUY'?'badge-green':'badge-red'}">${escapeHtml(String(t.type??t.action??''))}</span></td>
+            <td>${((t.entry ?? t.price ?? 0) as number).toFixed(2)}</td>
+            <td>${((t.exit ?? 0) as number).toFixed(2)}</td>
+            <td>${(t.qty ?? (t.amount as number | undefined) ?? 0).toLocaleString()}</td>
             <td class="${(t.pnl ?? 0) >= 0 ? 'pos' : 'neg'}">${(t.pnl ?? 0) >= 0 ? '+' : ''}$${((t.pnl ?? 0)).toLocaleString('en', { maximumFractionDigits: 0 })}</td>
           </tr>`;
         }).join('')}
