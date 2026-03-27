@@ -1,0 +1,19 @@
+node_modules/
+.expo/
+ios/
+android/
+dist/
+
+# assets/web/ is intentionally tracked — it holds the Vite single-bundle
+# Uncomment the line below only if you want to exclude it (e.g. too large for git)
+# assets/web/
+
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+.env
+.env.local
