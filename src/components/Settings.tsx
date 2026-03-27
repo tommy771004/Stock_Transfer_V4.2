@@ -16,6 +16,7 @@ import { getSetting, setSetting, getDbStats } from '../services/api';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { MODELS } from '../constants';
+import Decimal from 'decimal.js';
 
 const DEFAULT_SETTINGS = {
   openrouterKey:       '',

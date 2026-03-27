@@ -215,6 +215,11 @@ export interface BacktestTrade {
   entry?: number;
   exit?: number;
   qty?: number;
+  // 👇 補上 UI 畫面裡會用到的擴充屬性
+  entryDate?: string;
+  exitDate?: string;
+  dir?: string;
+  side?: string;
 }
 
 /** 回測績效指標 */

@@ -145,7 +145,7 @@ export function buildPortfolioPdf(positions: Position[], trades: Trade[], summar
           const t = raw as Trade & Pick<BacktestTrade, 'time'|'symbol'|'ticker'|'action'|'entry'|'exit'|'qty'|'amount'|'type'>;
           return `
           <tr>
-            <td>${escapeHtml(String(t.date ?? t.time ?? '').slice(0,10))}</td>
+            <td>${escapeHtml(String(t.date ??  '').slice(0,10))}</td>
             <td><strong>${escapeHtml(t.symbol ?? t.ticker ?? '')}</strong></td>
             <td><span class="badge ${String(t.type??t.action??'').includes('Buy')||t.type==='BUY'?'badge-green':'badge-red'}">${escapeHtml(String(t.type??t.action??''))}</span></td>
             <td>${((t.entry ?? t.price ?? 0) as number).toFixed(2)}</td>
