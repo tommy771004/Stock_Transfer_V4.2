@@ -1,5 +1,6 @@
-import { Component, ReactNode, ErrorInfo } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { AlertTriangle, RefreshCw } from 'lucide-react-native';
 
 interface Props { children: ReactNode; name?: string; }
 interface State { error: Error | null; info: string; }
@@ -20,36 +21,115 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
 
     return (
-      <div className="h-full flex items-center justify-center p-8">
-        <div className="max-w-lg w-full bg-[var(--card-bg)] rounded-2xl border border-rose-500/20 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle size={18} className="text-rose-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">
+      <View style={styles.container}>
+        <View style={styles.card}>
+          <View style={styles.header}>
+            <View style={styles.iconWrapper}>
+              <AlertTriangle size={18} color="#fb7185" />
+            </View>
+            <View>
+              <Text style={styles.title}>
                 {this.props.name ?? '元件'} 發生錯誤
-              </h3>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              </Text>
+              <Text style={styles.subtitle}>
                 頁面已停止渲染以防止應用程式崩潰
-              </p>
-            </div>
-          </div>
+              </Text>
+            </View>
+          </View>
 
-          <div className="bg-black/30 rounded-xl p-3 mb-4 overflow-auto max-h-32">
-            <code className="text-xs text-rose-300 font-mono leading-relaxed whitespace-pre-wrap">
-              {this.state.error.message}
-            </code>
-          </div>
+          <View style={styles.codeBlock}>
+            <ScrollView style={styles.scroll}>
+              <Text style={styles.codeText}>
+                {this.state.error.message}
+              </Text>
+            </ScrollView>
+          </View>
 
-          <button
-            onClick={() => this.setState({ error: null, info: '' })}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 text-indigo-300 text-xs font-bold border border-indigo-500/30 hover:bg-indigo-500/30 transition-all"
+          <TouchableOpacity
+            onPress={() => this.setState({ error: null, info: '' })}
+            style={styles.button}
           >
-            <RefreshCw size={12} /> 重試
-          </button>
-        </div>
-      </div>
+            <RefreshCw size={12} color="#a5b4fc" />
+            <Text style={styles.buttonText}>重試</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    height: '100%',
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  card: {
+    maxWidth: 512,
+    width: '100%',
+    backgroundColor: '#18181b',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.2)',
+    padding: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#71717a',
+    marginTop: 2,
+  },
+  codeBlock: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    maxHeight: 128,
+  },
+  scroll: {
+    flexGrow: 0,
+  },
+  codeText: {
+    fontSize: 12,
+    color: '#fda4af',
+    fontFamily: 'System',
+    lineHeight: 18,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    alignSelf: 'flex-start',
+  },
+  buttonText: {
+    color: '#a5b4fc',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+});
