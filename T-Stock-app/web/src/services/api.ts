@@ -79,7 +79,7 @@ const _mobileApiBase: string = IS_MOBILE_WEBVIEW
   : '';
 
 /** Build a full API URL, honouring _mobileApiBase when in WebView. */
-const apiUrl = (path: string) => `${_mobileApiBase}${path}`;
+export const apiUrl = (path: string) => `${_mobileApiBase}${path}`;
 
 const E = () => {
   if (!window.api) throw new Error('Electron API not available');

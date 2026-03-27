@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
+import { apiUrl } from '../services/api';
 import ChartWidget from './ChartWidget';
 import { PerformanceSummary } from './PerformanceSummary';
 import { Quote, HistoricalData, AIAnalysisResult, SentimentData, Trade } from '../types';
@@ -53,7 +54,7 @@ export default function Dashboard({ model, symbol }: { model: string, symbol: st
       const [quoteData, historyData, mData, tradesData] = await Promise.all([
         api.getQuote(symbol),
         api.getHistory(symbol, { period1 }),
-        fetch(`/api/market-summary?symbol=${symbol}`).then(r => r.json()).catch(() => []),
+        fetch(apiUrl(`/api/market-summary?symbol=${symbol}`)).then(r => r.json()).catch(() => []),
         api.getTrades()
       ]);
 
