@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../services/api';
+import { apiUrl } from '../services/api';
 import { useToast } from './ToastContext';
 import { Quote } from '../types';
 
@@ -48,7 +49,7 @@ export const MarketDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const measureLatency = async () => {
       const start = Date.now();
       try {
-        await fetch('/api/health');
+        await fetch(apiUrl('/api/health'));
         setLatency(Date.now() - start);
       } catch(e) {
         console.warn('[MarketData] latency check:', e);

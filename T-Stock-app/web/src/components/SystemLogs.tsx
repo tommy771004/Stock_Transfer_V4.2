@@ -12,6 +12,7 @@ import { RefreshCw,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
+import { apiUrl } from '../services/api';
 import { Alert } from '../types';
 import { motion } from 'motion/react';
 
@@ -154,7 +155,7 @@ export default function SystemLogs() {
     ];
     const fetchLogs = async () => {
       try {
-        const res = await fetch('/api/logs');
+        const res = await fetch(apiUrl('/api/logs'));
         if (res.ok) {
           const data: LogEntry[] = await res.json();
           if (Array.isArray(data) && data.length > 0) { setLogs(data); return; }

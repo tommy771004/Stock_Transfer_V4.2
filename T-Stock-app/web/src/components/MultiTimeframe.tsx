@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Activity, TrendingUp, TrendingDown, Minus, Clock, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { analyzeMTF } from '../services/aiService';
+import * as api from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
 import type { HistoricalData, MTFResult } from '../types';
 
@@ -39,18 +40,12 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
         threeYearsAgo.setDate(threeYearsAgo.getDate() - 365 * 3);
         const period1_1wk = threeYearsAgo.toISOString().split('T')[0];
 
-        // Fetch data for 1h, 1d, 1wk
-        const [res1h, res1d, res1wk] = await Promise.all([
-          fetch(`/api/stock/${symbol}/history?interval=1h&period1=${period1_1h}`),
-          fetch(`/api/stock/${symbol}/history?interval=1d&period1=${period1_1d}`),
-          fetch(`/api/stock/${symbol}/history?interval=1wk&period1=${period1_1wk}`)
+        // Fetch data for 1h, 1d, 1wk — via api.getHistory() so _mobileApiBase is respected
+        const [data1h, data1d, data1wk] = await Promise.all([
+          api.getHistory(symbol, { interval: '1h',  period1: period1_1h }),
+          api.getHistory(symbol, { interval: '1d',  period1: period1_1d }),
+          api.getHistory(symbol, { interval: '1wk', period1: period1_1wk }),
         ]);
-
-        if (!res1h.ok || !res1d.ok || !res1wk.ok) throw new Error('API response not ok');
-
-        const data1h = await res1h.json();
-        const data1d = await res1d.json();
-        const data1wk = await res1wk.json();
 
         if (!cancelled && mountedRef.current) {
           setData({ data1h, data1d, data1wk });

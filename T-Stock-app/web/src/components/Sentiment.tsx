@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import { LineChart, Activity, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { analyzeSentiment as getAISentiment } from '../services/aiService';
+import { apiUrl } from '../services/api';
 import { SentimentData } from '../types';
 
 function Sentiment({ model, symbol }: { model: string, symbol: string }) {
@@ -12,7 +13,7 @@ function Sentiment({ model, symbol }: { model: string, symbol: string }) {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const response = await fetch(`/api/market-summary?symbol=${symbol}`);
+        const response = await fetch(apiUrl(`/api/market-summary?symbol=${symbol}`));
         const data = await response.json();
         setMarketData(data);
       } catch (error) {
