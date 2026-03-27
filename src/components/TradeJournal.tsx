@@ -178,7 +178,7 @@ export default function TradeJournal() {
 
   const sorted = [...trades].sort((a,b) =>
     sortCol === 'pnl'
-      ? (b.pnl ?? 0) - (a.pnl ?? 0)
+      ? (isFinite(b.pnl ?? NaN) ? (b.pnl ?? 0) : 0) - (isFinite(a.pnl ?? NaN) ? (a.pnl ?? 0) : 0)
       : (b.date ?? '').localeCompare(a.date ?? '')
   );
 

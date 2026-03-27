@@ -254,9 +254,9 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
     if(!isFinite(sharesNum)||sharesNum<=0||!isFinite(avgCostNum)||avgCostNum<=0){setSaveErr('股數與均價必須為有效正數');return;}
     const pos:Position={symbol:newPos.symbol.toUpperCase(),name:newPos.name||newPos.symbol.toUpperCase(),shares:sharesNum,avgCost:avgCostNum,currency:newPos.currency};
     const updated=[...positions,pos];
-    await persist(updated); setShowAdd(false); setNewPos({symbol:'',name:'',shares:'',avgCost:'',currency:'USD'}); fetchAll(true);
+    await persist(updated); setShowAdd(false); setNewPos({symbol:'',name:'',shares:'',avgCost:'',currency:'USD'}); await fetchAll(true);
   };
-  const handleDelete=async(idx:number)=>{ const u=positions.filter((_,i)=>i!==idx); await persist(u); fetchAll(true); };
+  const handleDelete=async(idx:number)=>{ const u=positions.filter((_,i)=>i!==idx); await persist(u); await fetchAll(true); };
   const handleSaveEdit=async()=>{
     if(editIdx===null) return;
     const updated=positions.map((p,i)=>i===editIdx?{...p,...editBuf}:p);
@@ -264,8 +264,9 @@ export default function Portfolio({onGoBacktest,onGoJournal}:Props) {
   };
 
   const applyCapital=()=>{
-    const v=parseInt(capInput.replace(/,/g,''),10);
+    const v=parseInt(capInput.replace(/[,，]/g,''),10);
     if(v>0){setInitCap(v);setShowCapSet(false);}
+    else setSaveErr('請輸入有效數字');
   };
 
   if(status === 'loading') return <div className="h-full flex items-center justify-center"><Loader2 className="w-7 h-7 text-emerald-400 animate-spin"/></div>;
