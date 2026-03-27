@@ -10,7 +10,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    void SplashScreen.hideAsync();
   }, []);
 
   return (

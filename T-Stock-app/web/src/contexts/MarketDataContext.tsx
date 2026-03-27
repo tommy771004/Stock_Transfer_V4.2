@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../services/api';
-import { apiUrl } from '../services/api';
+import { apiUrl, IS_MOBILE_OFFLINE } from '../services/api';
 import { useToast } from './ToastContext';
 import { Quote } from '../types';
 
@@ -36,6 +36,9 @@ export const MarketDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   useEffect(() => {
+    // In pure offline mobile mode (no server configured) skip polling entirely —
+    // every tick would produce a noisy error toast with no benefit.
+    if (IS_MOBILE_OFFLINE) return;
     // 延遲執行，避免在渲染期間更新狀態
     const timer = setTimeout(fetchTickers, 0);
     const id = setInterval(fetchTickers, 60_000);
@@ -46,6 +49,7 @@ export const MarketDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [fetchTickers]);
 
   useEffect(() => {
+    if (IS_MOBILE_OFFLINE) return;
     const measureLatency = async () => {
       const start = Date.now();
       try {

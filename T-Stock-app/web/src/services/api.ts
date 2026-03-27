@@ -66,7 +66,7 @@ const apiWarn = (ctx: string, e: unknown) => {
 const IS_ELECTRON = typeof window !== 'undefined' && !!window.api?.isElectron;
 
 /** True when running inside the Expo React Native WebView shell */
-const IS_MOBILE_WEBVIEW =
+export const IS_MOBILE_WEBVIEW =
   typeof window !== 'undefined' && !!(window as Window & { __EXPO_WEBVIEW__?: boolean }).__EXPO_WEBVIEW__;
 
 /**
@@ -77,6 +77,12 @@ const IS_MOBILE_WEBVIEW =
 const _mobileApiBase: string = IS_MOBILE_WEBVIEW
   ? (() => { try { return localStorage.getItem('mobile_api_base') ?? ''; } catch { return ''; } })()
   : '';
+
+/**
+ * True when running in mobile WebView with NO server configured.
+ * Used to skip network polling that would produce noisy error toasts.
+ */
+export const IS_MOBILE_OFFLINE = IS_MOBILE_WEBVIEW && _mobileApiBase === '';
 
 /** Build a full API URL, honouring _mobileApiBase when in WebView. */
 export const apiUrl = (path: string) => `${_mobileApiBase}${path}`;
