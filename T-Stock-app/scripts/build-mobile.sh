@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"      # T-Stock-app/
+EXPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"       # T-Stock-app/
 WEB_DIR="$EXPO_DIR/web"                        # T-Stock-app/web/
 ASSETS_WEB="$EXPO_DIR/assets/web"
 
@@ -42,8 +42,16 @@ rm -rf "$ASSETS_WEB/assets"
 
 echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 mkdir -p "$ASSETS_WEB"
+
+echo "▶ Building Vite (single-bundle, all JS+CSS inlined)…"
 cd "$WEB_DIR"
 npm run build:mobile
+
+# 確認 index.html 是否成功生成
+if [ ! -f "$ASSETS_WEB/index.html" ]; then
+  echo "❌ Error: index.html was not generated in $ASSETS_WEB"
+  exit 1
+fi
 
 SIZE=$(du -sh "$ASSETS_WEB/index.html" | cut -f1)
 echo "  ✓ assets/web/index.html  ($SIZE)"
