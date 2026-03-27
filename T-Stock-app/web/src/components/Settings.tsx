@@ -12,7 +12,7 @@ import {
   Trash2, Download, RefreshCw, AlertCircle, Info, Cpu, BarChart2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { getSetting, setSetting, getDbStats } from '../services/api';
+import { getSetting, setSetting, getDbStats, IS_MOBILE_WEBVIEW } from '../services/api';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { MODELS } from '../constants';
@@ -304,6 +304,12 @@ export default function Settings() {
               <Row label="Ollama 伺服器位址" hint="預設為 http://localhost:11434">
                 <TextInput k="ollamaBaseUrl" placeholder="http://localhost:11434"/>
               </Row>
+              {IS_MOBILE_WEBVIEW && (
+                <div className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2 mt-1">
+                  ⚠️ 實體裝置無法使用 localhost。請輸入執行 Ollama 的電腦區域網路 IP，例如{' '}
+                  <span className="font-mono">http://192.168.1.x:11434</span>
+                </div>
+              )}
               <Row label="連線狀態">
                 <span className={cn('text-xs px-2 py-1 rounded-full font-bold border',
                   settings.useOllama ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30')}>

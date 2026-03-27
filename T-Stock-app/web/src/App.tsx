@@ -83,7 +83,7 @@ const QUICK_NAVS = NAV.filter(item => item.shortcut);
 const MOBILE_NAVS = NAV.filter(item => ['market', 'trading', 'backtest', 'portfolio', 'sentiment'].includes(item.id));
 
 function MainApp() {
-  const { tickers, latency } = useMarketData();
+  const { tickers, latency, isOffline } = useMarketData();
   const { page, setPage, topTab, setTopTab } = useNavigation();
   const { settings, updateSetting } = useSettings();
   const set = (key: string, val: unknown) => updateSetting(key, val);
@@ -355,6 +355,11 @@ function MainApp() {
             </div>
             {/* Mobile ticker strip — desktop has footer ticker */}
             <div className="md:hidden flex items-center gap-3 overflow-x-auto mobile-hide-scrollbar">
+              {isOffline && (
+                <span className="shrink-0 text-[10px] font-bold text-yellow-500 px-2 py-0.5 rounded-full border border-yellow-500/30 bg-yellow-500/10">
+                  ● 離線
+                </span>
+              )}
               {tickers.slice(0,4).map(t=>{
                 const up=t.pct>=0;
                 return (
@@ -491,10 +496,17 @@ function MainApp() {
             <span className="text-emerald-400 font-mono">{latency}MS</span>
           </div>
           <div className="w-px h-3 bg-white/10" />
-          <div className="flex items-center gap-1.5 text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-            SYSTEM ONLINE
-          </div>
+          {isOffline ? (
+            <div className="flex items-center gap-1.5 text-yellow-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"/>
+              OFFLINE MODE
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
+              SYSTEM ONLINE
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-6">
           {tickers.map(t=>{

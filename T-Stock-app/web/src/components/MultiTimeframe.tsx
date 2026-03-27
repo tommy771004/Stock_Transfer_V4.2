@@ -14,11 +14,14 @@ interface MTFData {
   data1wk: HistoricalData[];
 }
 
+type MTFStatus =
+  | { phase: 'loading' }
+  | { phase: 'error'; message: string }
+  | { phase: 'ready'; result: MTFResult };
+
 export default function MultiTimeframe({ model, symbol }: { model: string, symbol: string }) {
   const { settings } = useSettings();
-  const [analysis, setAnalysis] = useState<MTFResult | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [status, setStatus] = useState<MTFStatus>({ phase: 'loading' });
   const [data, setData] = useState<MTFData | null>(null);
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
@@ -27,7 +30,7 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
     let cancelled = false;
     const fetchData = async () => {
       try {
-        setIsLoading(true);
+        setStatus({ phase: 'loading' });
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const period1_1h = thirtyDaysAgo.toISOString().split('T')[0];
@@ -49,13 +52,11 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
 
         if (!cancelled && mountedRef.current) {
           setData({ data1h, data1d, data1wk });
-          setFetchError(null);
         }
       } catch (error) {
         console.error("Error fetching MTF data:", error);
-        if (!cancelled && mountedRef.current) setFetchError(error instanceof Error ? error.message : '資料載入失敗');
-      } finally {
-        if (!cancelled && mountedRef.current) setIsLoading(false);
+        if (!cancelled && mountedRef.current)
+          setStatus({ phase: 'error', message: error instanceof Error ? error.message : '資料載入失敗' });
       }
     };
 
@@ -68,14 +69,16 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
     const runAnalysis = async () => {
       if (!data) return;
       try {
-        if (mountedRef.current) setIsLoading(true);
+        setStatus({ phase: 'loading' });
         const result = await analyzeMTF(symbol, data.data1h, data.data1d, data.data1wk, model, String(settings.systemInstruction || ''));
-        if (!cancelled && mountedRef.current) setAnalysis(result);
+        if (!cancelled && mountedRef.current) {
+          if (result) setStatus({ phase: 'ready', result });
+          else setStatus({ phase: 'error', message: 'AI 回傳空結果，請檢查 API Key 設定' });
+        }
       } catch (error) {
         console.error("Error analyzing MTF data:", error);
-        if (!cancelled && mountedRef.current) setFetchError(error instanceof Error ? error.message : 'AI 分析失敗');
-      } finally {
-        if (!cancelled && mountedRef.current) setIsLoading(false);
+        if (!cancelled && mountedRef.current)
+          setStatus({ phase: 'error', message: error instanceof Error ? error.message : 'AI 分析失敗' });
       }
     };
 
@@ -98,12 +101,18 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
           </div>
         </div>
 
-        {isLoading ? (
+        {status.phase === 'loading' ? (
           <div className="flex flex-col items-center justify-center h-64 space-y-4 relative z-10">
             <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
             <p className="text-white/60">AI 正在進行多時區共振分析...</p>
           </div>
-        ) : analysis ? (
+        ) : status.phase === 'error' ? (
+          <div className="flex flex-col items-center justify-center h-64 space-y-3 relative z-10">
+            <AlertCircle className="w-10 h-10 text-rose-400" />
+            <p className="text-rose-400 font-semibold">載入失敗</p>
+            <p className="text-white/40 text-sm text-center max-w-xs">{status.message}</p>
+          </div>
+        ) : (
           <>
             <div className="overflow-x-auto relative z-10">
               <table className="w-full text-left border-collapse">
@@ -116,14 +125,14 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
                   </tr>
                 </thead>
                 <tbody>
-                  {analysis.indicators.map((ind, i: number) => (
+                  {status.result.indicators.map((ind, i: number) => (
                     <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                       <td className="p-4 text-white/80 font-medium">{ind.name}</td>
                       {ind.values.map((val: string, j: number) => {
-                        const status = (ind.statuses?.[j] ?? val) as 'bullish' | 'bearish' | 'neutral';
+                        const badgeStatus = (ind.statuses?.[j] ?? val) as 'bullish' | 'bearish' | 'neutral';
                         return (
                           <td key={j} className="p-4 text-center">
-                            <StatusBadge value={val} status={status} />
+                            <StatusBadge value={val} status={badgeStatus} />
                           </td>
                         );
                       })}
@@ -132,35 +141,25 @@ export default function MultiTimeframe({ model, symbol }: { model: string, symbo
                 </tbody>
               </table>
             </div>
-            
+
             <div className="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl relative z-10 backdrop-blur-md">
               <h4 className="text-indigo-300 font-semibold mb-2 flex items-center gap-2">
                 <Activity className="w-5 h-5" />
                 AI 綜合評估 (AI Synthesis)
               </h4>
               <p className="text-white/80 text-sm leading-relaxed">
-                {analysis.synthesis}
+                {status.result.synthesis}
                 <br /><br />
                 整體共振分數：
                 <strong className={cn(
                   "ml-1",
-                  analysis.score >= 70 ? "text-emerald-400" : analysis.score <= 30 ? "text-rose-400" : "text-amber-400"
+                  status.result.score >= 70 ? "text-emerald-400" : status.result.score <= 30 ? "text-rose-400" : "text-amber-400"
                 )}>
-                  {analysis.score}/100 ({analysis.overallTrend})
+                  {status.result.score}/100 ({status.result.overallTrend})
                 </strong>
               </p>
             </div>
           </>
-        ) : fetchError ? (
-          <div className="flex flex-col items-center justify-center h-64 space-y-3 relative z-10">
-            <AlertCircle className="w-10 h-10 text-rose-400" />
-            <p className="text-rose-400 font-semibold">載入失敗</p>
-            <p className="text-white/40 text-sm text-center max-w-xs">{fetchError}</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-64 space-y-4 relative z-10">
-            <p className="text-white/60">無法載入分析結果</p>
-          </div>
         )}
       </div>
     </div>
