@@ -135,7 +135,7 @@ export default function TradeJournal() {
   // ── Save inline edit ──────────────────────────────────────────────────────
   const handleSaveEdit = async () => {
     if (editId === null) return;
-    setSaving(true);
+    setStatus('saving');
     try {
       const orig = trades.find(t => t.id === editId)!;
       const merged = { ...orig, ...editBuf };
