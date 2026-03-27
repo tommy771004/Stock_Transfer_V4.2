@@ -170,11 +170,13 @@ export default function TradeJournal() {
   const efld = (k: string, v: string | number) => setEditBuf(p => ({ ...p, [k]: v }));
 
   const wins    = trades.filter(t => t.pnl > 0);
-  const netPnL  = trades.reduce((s,t) => s + (t.pnl ?? 0), 0);
+  const netPnL  = trades.reduce((s,t) => new Decimal(s).plus(t.pnl ?? 0).toNumber(), 0);
   const winRate = trades.length > 0 ? ((wins.length/trades.length)*100).toFixed(1) : '0.0';
-  const gross   = wins.reduce((s,t) => s+(t.pnl??0), 0);
-  const grossL  = Math.abs(trades.filter(t=>(t.pnl??0)<0).reduce((s,t)=>s+(t.pnl??0),0));
-  const pf      = grossL > 0 ? (gross/grossL).toFixed(2) : gross > 0 ? '∞' : '0.00';
+  const gross   = wins.reduce((s,t) => new Decimal(s).plus(t.pnl ?? 0).toNumber(), 0);
+  const grossL  = Math.abs(
+    trades.filter(t=>(t.pnl??0)<0).reduce((s,t) => new Decimal(s).plus(t.pnl ?? 0).toNumber(), 0)
+  );
+  const pf      = grossL > 0 ? new Decimal(gross).div(grossL).toDecimalPlaces(2).toString() : gross > 0 ? '∞' : '0.00';
   const monthlyPnL = buildMonthlyPnL(trades);
 
   const sorted = [...trades].sort((a,b) =>
