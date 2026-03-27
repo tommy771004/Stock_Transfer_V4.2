@@ -36,6 +36,13 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 
+// Resolved once at module load — works in both managed and bare workflows.
+// expoConfig is available in managed; nativeAppVersion in bare (post-prebuild).
+const APP_VERSION =
+  Constants.expoConfig?.version ??
+  Constants.nativeAppVersion ??
+  '1.0.0';
+
 // ─── Dev-server config ────────────────────────────────────────────────────────
 /**
  * Set to your machine's local IP when developing.
@@ -205,9 +212,7 @@ export default function MainScreen() {
         >
           <Text style={s.retryTxt}>重試</Text>
         </TouchableOpacity>
-        <Text style={s.errVersion}>
-          v{Constants.expoConfig?.version ?? '1.0.0'}
-        </Text>
+        <Text style={s.errVersion}>v{APP_VERSION}</Text>
       </View>
     );
   }
@@ -241,8 +246,8 @@ export default function MainScreen() {
 
   return (
     <View style={containerStyle}>
-      {/* DEV badge — visible only in __DEV__ builds, shows load source */}
-      {__DEV__ && status === 'ready' && (
+      {/* DEV badge — visible whenever a URI is loaded (survives reload flicker) */}
+      {__DEV__ && webUri !== null && (
         <View style={s.devBadge} pointerEvents="none">
           <Text style={s.devTxt}>
             {IS_DEV ? `DEV  ${DEV_SERVER_URL}` : `DEV  cache`}
